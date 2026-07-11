@@ -1,0 +1,36 @@
+import type { ReactNode } from 'react'
+import { cn } from '@/lib/utils'
+
+type BadgeVariant = 'default' | 'success' | 'warning' | 'danger'
+
+const variantStyles: Record<BadgeVariant, string> = {
+  default:
+    'bg-surface-100 text-surface-700 dark:bg-surface-800 dark:text-surface-200',
+  success:
+    'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+  warning:
+    'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  danger: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+}
+
+export function Badge({
+  children,
+  variant = 'default',
+  className,
+}: {
+  children: ReactNode
+  variant?: BadgeVariant
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium',
+        variantStyles[variant],
+        className,
+      )}
+    >
+      {children}
+    </span>
+  )
+}
