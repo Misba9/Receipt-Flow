@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
+import { cn } from '@/utils'
 
 type ExportButtonProps = {
   label?: string
@@ -34,11 +35,11 @@ export function ExportButton({
   }
 
   return (
-    <div className="flex flex-col items-stretch gap-1 sm:items-end">
+    <div className="relative shrink-0">
       <Button
         type="button"
         variant={variant}
-        className={className}
+        className={cn(className)}
         disabled={isExporting}
         onClick={() => void handleClick()}
       >
@@ -47,10 +48,13 @@ export function ExportButton({
         ) : (
           (icon ?? <FileSpreadsheet className="h-4 w-4" />)
         )}
-        {isExporting ? 'Exporting…' : label}
+        <span className="hidden sm:inline">
+          {isExporting ? 'Exporting…' : label}
+        </span>
+        <span className="sm:hidden">{isExporting ? '…' : 'Export'}</span>
       </Button>
       {error ? (
-        <p className="max-w-xs text-right text-xs text-red-600 dark:text-red-400">
+        <p className="absolute top-full right-0 z-10 mt-1 max-w-[16rem] text-right text-xs text-red-600 dark:text-red-400">
           {error}
         </p>
       ) : null}

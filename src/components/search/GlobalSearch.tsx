@@ -50,6 +50,15 @@ export function GlobalSearch({ className, mobile = false }: GlobalSearchProps) {
     !hasResults
 
   useEffect(() => {
+    if (!mobile || !mobileExpanded) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [mobile, mobileExpanded])
+
+  useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) {
         setOpen(false)
@@ -117,10 +126,18 @@ export function GlobalSearch({ className, mobile = false }: GlobalSearchProps) {
       className={cn(
         'relative',
         mobile &&
-          'fixed inset-x-0 top-0 z-50 border-b border-surface-200 bg-white p-3 dark:border-surface-800 dark:bg-surface-950',
+          'fixed inset-x-0 top-0 z-50 border-b border-surface-200 bg-white p-3 shadow-lg dark:border-surface-800 dark:bg-surface-950',
         className,
       )}
     >
+      {mobile && mobileExpanded ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-[-1] bg-surface-950/40"
+          aria-label="Close search"
+          onClick={closeAndClear}
+        />
+      ) : null}
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-surface-400" />
         <input
@@ -162,7 +179,7 @@ export function GlobalSearch({ className, mobile = false }: GlobalSearchProps) {
         <div
           id={listId}
           role="listbox"
-          className="absolute z-50 mt-2 max-h-[28rem] w-full overflow-y-auto rounded-xl border border-surface-200 bg-white shadow-xl dark:border-surface-700 dark:bg-surface-900"
+          className="absolute z-50 mt-2 max-h-[min(28rem,70vh)] w-full overflow-y-auto rounded-xl border border-surface-200 bg-white shadow-xl dark:border-surface-700 dark:bg-surface-900"
         >
           {(isFetching || isDebouncing) && (
             <div className="flex items-center gap-2 px-4 py-3 text-sm text-surface-500">

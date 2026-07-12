@@ -8,15 +8,20 @@ import { downloadInvoicePdf } from '@/services/invoices/pdf'
 import type { InvoiceDetail } from '@/services/invoices/types'
 import { useCompanySettings } from '@/services/settings/hooks'
 import { useToast } from '@/hooks/useToast'
+import { cn } from '@/utils'
 
 type DownloadInvoicePdfButtonProps = {
   invoice: InvoiceDetail
   variant?: 'primary' | 'secondary' | 'ghost'
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
 }
 
 export function DownloadInvoicePdfButton({
   invoice,
   variant = 'primary',
+  size = 'md',
+  className,
 }: DownloadInvoicePdfButtonProps) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -50,10 +55,12 @@ export function DownloadInvoicePdfButton({
   }
 
   return (
-    <div className="flex flex-col items-stretch gap-1 sm:items-end">
+    <div className="relative shrink-0">
       <Button
         type="button"
         variant={variant}
+        size={size}
+        className={cn(size === 'sm' && 'sm:h-11 sm:px-4', className)}
         disabled={isWorking || companyLoading || !company}
         onClick={() => void handleDownload()}
       >
@@ -62,11 +69,14 @@ export function DownloadInvoicePdfButton({
         ) : (
           <Download className="h-4 w-4" />
         )}
-        {isWorking ? 'Generating…' : 'Download PDF'}
+        <span className="hidden sm:inline">
+          {isWorking ? 'Generating…' : 'Download PDF'}
+        </span>
+        <span className="sm:hidden">{isWorking ? '…' : 'PDF'}</span>
       </Button>
 
       {error ? (
-        <p className="max-w-xs text-right text-xs text-red-600 dark:text-red-400">
+        <p className="absolute top-full right-0 z-10 mt-1 max-w-[16rem] text-right text-xs text-red-600 dark:text-red-400">
           {error}
         </p>
       ) : null}

@@ -34,8 +34,10 @@ export function ProfileCompletionCard() {
           </div>
         </div>
       </div>
-      <Link to={paths.settings}>
-        <Button variant="secondary">Finish setup</Button>
+      <Link to={paths.settings} className="w-full shrink-0 sm:w-auto">
+        <Button variant="secondary" className="w-full sm:w-auto">
+          Finish setup
+        </Button>
       </Link>
     </Card>
   )

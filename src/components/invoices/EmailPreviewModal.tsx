@@ -82,7 +82,7 @@ export function EmailPreviewModal({
               <iframe
                 title="Invoice email preview"
                 srcDoc={preview.html}
-                className="h-[420px] w-full bg-white"
+                className="h-[min(420px,50vh)] w-full bg-white sm:h-[420px]"
                 sandbox=""
               />
             </div>

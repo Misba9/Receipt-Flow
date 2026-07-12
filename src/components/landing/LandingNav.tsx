@@ -24,6 +24,15 @@ export function LandingNav() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    if (!open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [open])
+
   return (
     <header
       className={cn(
@@ -114,7 +123,7 @@ export function LandingNav() {
       </div>
 
       {open ? (
-        <div className="border-t border-surface-200 bg-white px-4 py-4 md:hidden">
+        <div className="max-h-[calc(100svh-4rem)] overflow-y-auto border-t border-surface-200 bg-white px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1" aria-label="Mobile">
             {links.map((link) => (
               <a

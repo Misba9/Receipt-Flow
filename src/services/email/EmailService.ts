@@ -87,7 +87,6 @@ export const EmailService = {
       customerEmail: recipient,
       invoiceNumber: invoice.invoice_number,
       issueDate: invoice.issue_date,
-      dueDate: invoice.due_date,
       currency: invoice.currency,
       subtotal: invoice.subtotal,
       discount: invoice.discount_amount,

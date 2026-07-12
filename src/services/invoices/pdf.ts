@@ -2,7 +2,8 @@ import {
   downloadStoredInvoicePdf,
   uploadInvoicePdf,
 } from '@/services/invoices/api'
-import type { InvoiceDetail } from '@/services/invoices/types'
+import type { InvoiceDetail, PaymentMode } from '@/services/invoices/types'
+import { PAYMENT_MODE_LABELS } from '@/services/invoices/types'
 import type { CompanySettings } from '@/services/settings/types'
 import { formatDate } from '@/lib/format'
 
@@ -100,6 +101,18 @@ function formatMoney(amount: number, currency: string) {
 
   const prefix = prefixByCode[code] ?? `${code} `
   return toPdfSafeText(`${prefix}${number}`)
+}
+
+function formatPaymentModeLabel(
+  mode: PaymentMode | null | undefined,
+  other?: string | null,
+) {
+  if (!mode) return null
+  if (mode === 'other') {
+    const custom = other?.trim()
+    return custom || 'Other'
+  }
+  return PAYMENT_MODE_LABELS[mode]
 }
 
 function companyAddressLines(company: CompanySettings) {
@@ -387,28 +400,34 @@ export async function generateInvoicePdf(
     9,
     colors.muted,
   )
-  if (invoice.due_date) {
+  const paymentLabel = formatPaymentModeLabel(
+    invoice.payment_mode,
+    invoice.payment_mode_other,
+  )
+  let metaY = y - 66
+  if (paymentLabel) {
     drawRightText(
       page,
-      `Due: ${formatDate(invoice.due_date, undefined, company.timezone)}`,
+      `Payment mode: ${paymentLabel}`,
       metaRight,
-      y - 66,
+      metaY,
       font,
       9,
       colors.muted,
     )
+    metaY -= 14
   }
   drawRightText(
     page,
     `Status: ${invoice.status.toUpperCase()}`,
     metaRight,
-    y - 80,
+    metaY,
     font,
     9,
     colors.muted,
   )
 
-  y = Math.min(companyY, y - 96) - 12
+  y = Math.min(companyY, metaY - 16) - 12
 
   page.drawRectangle({
     x: MARGIN,
@@ -444,39 +463,36 @@ export async function generateInvoicePdf(
   ].filter(Boolean) as string[]
 
   customerLines.forEach((line) => {
-    page.drawText(toPdfSafeText(line), {
-      x: MARGIN,
-      y,
-      size: 9,
-      font,
-      color: colors.muted,
+    const wrapped = wrapText(line, font, 9, CONTENT_WIDTH * 0.55)
+    wrapped.forEach((part) => {
+      page.drawText(part, {
+        x: MARGIN,
+        y,
+        size: 9,
+        font,
+        color: colors.muted,
+      })
+      y -= 12
     })
-    y -= 12
   })
 
   y -= 10
   const billMeta = [
-    invoice.model ? `Model: ${invoice.model}` : '',
-    invoice.place ? `Place: ${invoice.place}` : '',
     invoice.employee_name ? `Employee: ${invoice.employee_name}` : '',
-    invoice.payment_mode
-      ? `Payment: ${
-          invoice.payment_mode === 'other'
-            ? invoice.payment_mode_other || 'Other'
-            : invoice.payment_mode.replaceAll('_', ' ')
-        }`
-      : '',
   ].filter(Boolean)
 
   billMeta.forEach((line) => {
-    page.drawText(toPdfSafeText(line), {
-      x: MARGIN,
-      y,
-      size: 9,
-      font,
-      color: colors.muted,
+    const wrapped = wrapText(line, font, 9, CONTENT_WIDTH * 0.55)
+    wrapped.forEach((part) => {
+      page.drawText(part, {
+        x: MARGIN,
+        y,
+        size: 9,
+        font,
+        color: colors.muted,
+      })
+      y -= 12
     })
-    y -= 12
   })
 
   y -= 18
@@ -597,71 +613,93 @@ export async function generateInvoicePdf(
   })
 
   y -= 16
-  ensureSpace(150)
 
-  const totalsBoxWidth = 200
-  const totalsXLabel = PAGE_WIDTH - MARGIN - totalsBoxWidth
-  const totalsXValue = PAGE_WIDTH - MARGIN
-  const totalsPadX = 8
+  const totalRows: Array<{ label: string; value: string }> = [
+      {
+        label: 'Subtotal',
+        value: formatMoney(invoice.subtotal, invoice.currency),
+      },
+    ]
+  if (invoice.discount_amount > 0) {
+    totalRows.push({
+      label: 'Discount',
+      value: `-${formatMoney(invoice.discount_amount, invoice.currency)}`,
+    })
+  }
+  totalRows.push({
+    label: `GST (${invoice.tax_rate}%)`,
+    value: formatMoney(invoice.tax_amount, invoice.currency),
+  })
 
-  const drawTotalRow = (
-    label: string,
-    value: string,
-    options?: { bold?: boolean; brand?: boolean; size?: number; gap?: number },
-  ) => {
-    const size = options?.size ?? 10
-    const gap = options?.gap ?? Math.max(16, Math.ceil(size * 1.6))
-    const rowFont = options?.bold ? fontBold : font
-    const color = options?.brand ? colors.brand : colors.text
+  const totalsRowGap = 18
+  const grandSize = 11
+  const grandPadX = 10
+  const grandPadY = 8
+  const grandBoxHeight = grandSize + grandPadY * 2
+  const totalsNeeded =
+    totalRows.length * totalsRowGap + grandBoxHeight + 28
+  ensureSpace(totalsNeeded)
 
-    page.drawText(toPdfSafeText(label), {
-      x: totalsXLabel,
+  const maxValueWidth = Math.max(
+    ...totalRows.map((row) =>
+      font.widthOfTextAtSize(toPdfSafeText(row.value), 10),
+    ),
+    fontBold.widthOfTextAtSize(
+      toPdfSafeText(formatMoney(invoice.total, invoice.currency)),
+      grandSize,
+    ),
+  )
+  const maxLabelWidth = Math.max(
+    ...totalRows.map((row) =>
+      font.widthOfTextAtSize(toPdfSafeText(row.label), 10),
+    ),
+    fontBold.widthOfTextAtSize('Grand Total', grandSize),
+  )
+  const totalsInnerGap = 16
+  const totalsBoxWidth = Math.min(
+    CONTENT_WIDTH * 0.48,
+    Math.ceil(maxLabelWidth + totalsInnerGap + maxValueWidth + grandPadX * 2),
+  )
+  const totalsBoxRight = PAGE_WIDTH - MARGIN
+  const totalsBoxLeft = totalsBoxRight - totalsBoxWidth
+  const totalsLabelX = totalsBoxLeft + grandPadX
+  const totalsValueX = totalsBoxRight - grandPadX
+
+  for (const row of totalRows) {
+    page.drawText(toPdfSafeText(row.label), {
+      x: totalsLabelX,
       y,
-      size,
-      font: rowFont,
-      color: options?.brand ? colors.brand : colors.muted,
+      size: 10,
+      font,
+      color: colors.muted,
     })
     drawRightText(
       page,
-      toPdfSafeText(value),
-      totalsXValue,
+      row.value,
+      totalsValueX,
       y,
-      rowFont,
-      size,
-      color,
+      font,
+      10,
+      colors.text,
     )
-    y -= gap
+    y -= totalsRowGap
   }
 
-  drawTotalRow('Subtotal', formatMoney(invoice.subtotal, invoice.currency))
-  if (invoice.discount_amount > 0) {
-    drawTotalRow(
-      'Discount',
-      `-${formatMoney(invoice.discount_amount, invoice.currency)}`,
-    )
-  }
-  drawTotalRow(
-    `GST (${invoice.tax_rate}%)`,
-    formatMoney(invoice.tax_amount, invoice.currency),
-  )
-
+  // Clear gap so the Grand Total chip never overlaps GST / Discount lines
   y -= 6
-  const grandSize = 12
-  const grandPadY = 10
-  const grandRowHeight = grandSize + grandPadY * 2
-  ensureSpace(grandRowHeight + 20)
-
+  const grandBoxBottom = y - grandBoxHeight
   page.drawRectangle({
-    x: totalsXLabel - totalsPadX,
-    y: y - grandPadY,
-    width: totalsBoxWidth + totalsPadX,
-    height: grandRowHeight,
+    x: totalsBoxLeft,
+    y: grandBoxBottom,
+    width: totalsBoxWidth,
+    height: grandBoxHeight,
     color: colors.headerBg,
   })
 
+  const grandTextY = grandBoxBottom + grandPadY
   page.drawText(toPdfSafeText('Grand Total'), {
-    x: totalsXLabel,
-    y,
+    x: totalsLabelX,
+    y: grandTextY,
     size: grandSize,
     font: fontBold,
     color: colors.brand,
@@ -669,18 +707,18 @@ export async function generateInvoicePdf(
   drawRightText(
     page,
     formatMoney(invoice.total, invoice.currency),
-    totalsXValue,
-    y,
+    totalsValueX,
+    grandTextY,
     fontBold,
     grandSize,
     colors.brand,
   )
-  y -= grandRowHeight + 4
+  y = grandBoxBottom - 10
 
   if (invoice.notes?.trim()) {
-    y -= 12
+    y -= 8
     ensureSpace(60)
-    page.drawText('NOTES', {
+    page.drawText('COMMENTS', {
       x: MARGIN,
       y,
       size: 8,
@@ -696,7 +734,7 @@ export async function generateInvoicePdf(
       font,
       9,
       colors.muted,
-      CONTENT_WIDTH * 0.55,
+      Math.min(CONTENT_WIDTH * 0.55, totalsBoxLeft - MARGIN - 12),
     )
     y -= notesHeight
   }

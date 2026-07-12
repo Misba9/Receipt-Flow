@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { FileText, Mail, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, FileText, Mail, Pencil, Trash2 } from 'lucide-react'
 import { DeleteInvoiceDialog } from '@/components/invoices/DeleteInvoiceDialog'
 import { DemoModeEmailBadge } from '@/components/invoices/DemoModeEmailBadge'
 import { DownloadInvoicePdfButton } from '@/components/invoices/DownloadInvoicePdfButton'
@@ -77,15 +77,20 @@ export function InvoiceDetailPage() {
         description="View invoice details, download PDF, or email the customer."
         actions={
           <>
-            <DemoModeEmailBadge />
-            <Link to={paths.invoices}>
-              <Button variant="secondary">Back</Button>
+            <DemoModeEmailBadge className="w-full basis-full sm:w-auto sm:basis-auto" />
+            <Link to={paths.invoices} className="shrink-0">
+              <Button variant="secondary" size="sm" className="sm:h-11 sm:px-4">
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
             </Link>
             {data ? (
               <>
-                <DownloadInvoicePdfButton invoice={data} />
+                <DownloadInvoicePdfButton invoice={data} size="sm" />
                 <Button
                   variant="secondary"
+                  size="sm"
+                  className="sm:h-11 sm:px-4"
                   disabled={isSending || !company}
                   onClick={() => void handleSendEmail()}
                 >
@@ -94,17 +99,31 @@ export function InvoiceDetailPage() {
                   ) : (
                     <Mail className="h-4 w-4" />
                   )}
-                  {isSending ? 'Sending…' : 'Send email'}
+                  <span className="hidden sm:inline">
+                    {isSending ? 'Sending…' : 'Send email'}
+                  </span>
+                  <span className="sm:hidden">
+                    {isSending ? 'Sending…' : 'Email'}
+                  </span>
                 </Button>
-                <Link to={paths.invoiceEdit(data.id)}>
-                  <Button variant="secondary">
+                <Link to={paths.invoiceEdit(data.id)} className="shrink-0">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="sm:h-11 sm:px-4"
+                  >
                     <Pencil className="h-4 w-4" />
                     Edit
                   </Button>
                 </Link>
-                <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className="sm:h-11 sm:px-4"
+                  onClick={() => setDeleteOpen(true)}
+                >
                   <Trash2 className="h-4 w-4" />
-                  Delete
+                  <span className="hidden sm:inline">Delete</span>
                 </Button>
               </>
             ) : null}

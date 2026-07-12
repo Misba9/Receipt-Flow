@@ -57,7 +57,7 @@ export function InvoicesTable({
 
   return (
     <>
-      <ul className="divide-y divide-surface-100 md:hidden dark:divide-surface-800">
+      <ul className="divide-y divide-surface-100 lg:hidden dark:divide-surface-800">
         {invoices.map((invoice) => (
           <li key={invoice.id} className="space-y-3 p-4">
             <div className="flex items-start justify-between gap-3">
@@ -106,8 +106,8 @@ export function InvoicesTable({
         ))}
       </ul>
 
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[52rem] text-left text-sm">
+      <div className="hidden overflow-x-auto lg:block">
+        <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-surface-100 text-xs uppercase tracking-wide text-surface-400 dark:border-surface-800">
               <th className="px-5 py-3 font-medium">Invoice</th>

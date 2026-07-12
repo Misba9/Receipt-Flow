@@ -69,22 +69,24 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-surface-200/80 bg-white/80 backdrop-blur-md dark:border-surface-800 dark:bg-surface-950/80">
-      <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
+      <div className="flex h-16 items-center gap-2 px-3 sm:gap-3 sm:px-6">
         <button
           type="button"
           onClick={onMenuClick}
-          className="rounded-lg p-2 text-surface-600 hover:bg-surface-100 lg:hidden dark:text-surface-300 dark:hover:bg-surface-800"
+          className="shrink-0 rounded-lg p-2 text-surface-600 hover:bg-surface-100 lg:hidden dark:text-surface-300 dark:hover:bg-surface-800"
           aria-label="Open sidebar"
         >
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="min-w-0 flex-1 md:flex-none md:basis-48 lg:basis-56">
+        <div className="min-w-0 flex-1 md:flex-none md:basis-44 lg:basis-56">
           <p className="truncate text-xs font-medium text-surface-400 sm:hidden">
             {pageTitle}
           </p>
           <div className="hidden sm:block">
-            <p className="text-xs font-medium text-surface-400">{pageTitle}</p>
+            <p className="truncate text-xs font-medium text-surface-400">
+              {pageTitle}
+            </p>
             <h1 className="truncate text-base font-semibold text-surface-900 dark:text-surface-50">
               {greeting}, {firstName}
             </h1>
@@ -99,7 +101,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           <div className="hidden min-w-0 flex-1 md:block" />
         )}
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
           {!isAdminConsole ? (
             <div className="md:hidden">
               <GlobalSearch mobile />

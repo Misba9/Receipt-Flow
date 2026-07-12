@@ -28,7 +28,6 @@ export function buildInvoiceEmailHtml(input: BuildInvoiceEmailInput): string {
     customerName,
     invoiceNumber,
     issueDate,
-    dueDate,
     currency,
     subtotal,
     discount,
@@ -79,17 +78,9 @@ export function buildInvoiceEmailHtml(input: BuildInvoiceEmailInput): string {
             <td style="padding:0 32px 24px 32px;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
                 <tr>
-                  <td style="padding:16px 18px;font-size:13px;color:#64748b;width:50%;">Issue date</td>
+                  <td style="padding:16px 18px;font-size:13px;color:#64748b;width:50%;">Billing date</td>
                   <td style="padding:16px 18px;font-size:13px;color:#0f172a;text-align:right;font-weight:600;">${escapeHtml(issueDate)}</td>
                 </tr>
-                ${
-                  dueDate
-                    ? `<tr>
-                  <td style="padding:0 18px 16px 18px;font-size:13px;color:#64748b;">Due date</td>
-                  <td style="padding:0 18px 16px 18px;font-size:13px;color:#0f172a;text-align:right;font-weight:600;">${escapeHtml(dueDate)}</td>
-                </tr>`
-                    : ''
-                }
                 <tr>
                   <td style="padding:0 18px 12px 18px;font-size:13px;color:#64748b;">Subtotal</td>
                   <td style="padding:0 18px 12px 18px;font-size:13px;color:#0f172a;text-align:right;">${escapeHtml(formatMoney(subtotal, currency))}</td>

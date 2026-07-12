@@ -25,13 +25,14 @@ export function DashboardPage() {
               onExport={exportSalesExcel}
               variant="secondary"
             />
-            <Link to={paths.customers}>
+            <Link to={paths.customers} className="shrink-0">
               <Button variant="secondary">Customers</Button>
             </Link>
-            <Link to={paths.invoiceNew}>
+            <Link to={paths.invoiceNew} className="shrink-0">
               <Button>
                 <Plus className="h-4 w-4" />
-                Create bill
+                <span className="hidden sm:inline">Create bill</span>
+                <span className="sm:hidden">New bill</span>
               </Button>
             </Link>
           </>

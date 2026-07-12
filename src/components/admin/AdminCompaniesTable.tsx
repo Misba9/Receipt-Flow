@@ -60,8 +60,139 @@ export function AdminCompaniesTable({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[64rem] text-left text-sm">
+      {/* Mobile / tablet cards */}
+      <ul className="divide-y divide-surface-100 lg:hidden dark:divide-surface-800">
+        {companies.map((company) => (
+          <li key={company.id} className="space-y-3 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium break-words text-surface-900 dark:text-surface-50">
+                  {company.name}
+                </p>
+                <p className="truncate text-xs text-surface-500">
+                  {company.email ?? 'No email'}
+                </p>
+              </div>
+              {company.isActive ? (
+                <span className="shrink-0 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  Active
+                </span>
+              ) : (
+                <span className="shrink-0 text-xs font-medium text-red-600 dark:text-red-400">
+                  Disabled
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <SubscriptionBadge status={company.subscriptionStatus} />
+              {company.subscriptionPlan ? (
+                <span className="text-xs text-surface-500">
+                  {company.subscriptionPlan}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="rounded-lg bg-surface-50 px-2 py-2 dark:bg-surface-950">
+                <p className="text-surface-400">Users</p>
+                <p className="mt-0.5 font-semibold tabular-nums">{company.userCount}</p>
+              </div>
+              <div className="rounded-lg bg-surface-50 px-2 py-2 dark:bg-surface-950">
+                <p className="text-surface-400">Invoices</p>
+                <p className="mt-0.5 font-semibold tabular-nums">
+                  {company.invoiceCount}
+                </p>
+              </div>
+              <div className="rounded-lg bg-surface-50 px-2 py-2 dark:bg-surface-950">
+                <p className="text-surface-400">Revenue</p>
+                <p className="mt-0.5 font-semibold tabular-nums">
+                  {formatCurrency(company.revenue)}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-surface-400">
+              Created {formatDate(company.createdAt)}
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  setActionError(null)
+                  setSubTarget(company)
+                  setSubStatus(company.subscriptionStatus)
+                  setSubPlan(company.subscriptionPlan ?? '')
+                }}
+              >
+                Plan
+              </Button>
+              {company.isActive ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setActionError(null)
+                    setReason('')
+                    setDisableTarget(company)
+                  }}
+                >
+                  <Ban className="h-4 w-4" />
+                  Disable
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={async () => {
+                    setActionError(null)
+                    try {
+                      await setActive.mutateAsync({
+                        companyId: company.id,
+                        isActive: true,
+                      })
+                    } catch (error) {
+                      setActionError(
+                        error instanceof Error
+                          ? error.message
+                          : 'Unable to enable company.',
+                      )
+                    }
+                  }}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Enable
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                className="text-red-600 hover:text-red-700 dark:text-red-400"
+                onClick={() => {
+                  setActionError(null)
+                  setDeleteTarget(company)
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden overflow-x-auto lg:block">
+        <table className="w-full text-left text-sm">
           <thead className="border-b border-surface-100 bg-surface-50/80 text-xs font-semibold tracking-wide text-surface-500 uppercase dark:border-surface-800 dark:bg-surface-950/50">
             <tr>
               <th className="px-4 py-3">Company</th>
@@ -219,10 +350,11 @@ export function AdminCompaniesTable({
               placeholder="Non-payment, abuse, etc."
             />
           </label>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="secondary"
+              className="w-full sm:w-auto"
               onClick={() => setDisableTarget(null)}
               disabled={busy}
             >
@@ -230,6 +362,7 @@ export function AdminCompaniesTable({
             </Button>
             <Button
               type="button"
+              className="w-full sm:w-auto"
               disabled={busy || !disableTarget}
               onClick={async () => {
                 if (!disableTarget) return
@@ -266,10 +399,11 @@ export function AdminCompaniesTable({
         }
         onClose={() => setDeleteTarget(null)}
       >
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="secondary"
+            className="w-full sm:w-auto"
             onClick={() => setDeleteTarget(null)}
             disabled={busy}
           >
@@ -278,7 +412,7 @@ export function AdminCompaniesTable({
           <Button
             type="button"
             disabled={busy || !deleteTarget}
-            className="bg-red-600 hover:bg-red-700"
+            className="w-full bg-red-600 hover:bg-red-700 sm:w-auto"
             onClick={async () => {
               if (!deleteTarget) return
               try {
@@ -330,10 +464,11 @@ export function AdminCompaniesTable({
               placeholder="Starter, Pro, Enterprise…"
             />
           </label>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="secondary"
+              className="w-full sm:w-auto"
               onClick={() => setSubTarget(null)}
               disabled={busy}
             >
@@ -341,6 +476,7 @@ export function AdminCompaniesTable({
             </Button>
             <Button
               type="button"
+              className="w-full sm:w-auto"
               disabled={busy || !subTarget}
               onClick={async () => {
                 if (!subTarget) return

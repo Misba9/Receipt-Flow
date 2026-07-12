@@ -43,7 +43,7 @@ export function Modal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
       <button
         type="button"
         className="absolute inset-0 bg-surface-950/50 backdrop-blur-[2px]"
@@ -58,7 +58,7 @@ export function Modal({
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
         className={cn(
-          'relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-surface-200 bg-white shadow-xl',
+          'relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-surface-200 bg-white shadow-xl sm:rounded-2xl',
           'dark:border-surface-800 dark:bg-surface-900',
           className,
         )}

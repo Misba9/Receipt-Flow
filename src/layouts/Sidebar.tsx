@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Building2,
@@ -104,6 +105,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       ? `Invoices · ${invoicePrefix}`
       : 'Workspace'
 
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, onClose])
+
   return (
     <>
       <div
@@ -117,9 +127,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-surface-200/80 bg-white/95',
+          'fixed inset-y-0 left-0 z-50 flex w-[min(18rem,85vw)] flex-col border-r border-surface-200/80 bg-white/95',
           'dark:border-surface-800 dark:bg-surface-950/95',
-          'transition-transform duration-200 ease-out lg:static lg:translate-x-0',
+          'transition-transform duration-200 ease-out lg:static lg:w-72 lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full',
         )}
       >

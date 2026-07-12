@@ -26,7 +26,7 @@ export type BuildInvoiceEmailInput = {
   customerEmail: string
   invoiceNumber: string
   issueDate: string
-  dueDate: string | null
+  dueDate?: string | null
   currency: string
   subtotal: number
   discount: number

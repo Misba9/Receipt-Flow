@@ -32,13 +32,21 @@ export function Pagination({
       )}
     >
       <p className="text-sm text-surface-500 dark:text-surface-400">
-        Showing <span className="font-medium text-surface-700 dark:text-surface-200">{from}</span>
+        Showing{' '}
+        <span className="font-medium text-surface-700 dark:text-surface-200">
+          {from}
+        </span>
         –
-        <span className="font-medium text-surface-700 dark:text-surface-200">{to}</span> of{' '}
-        <span className="font-medium text-surface-700 dark:text-surface-200">{total}</span>
+        <span className="font-medium text-surface-700 dark:text-surface-200">
+          {to}
+        </span>{' '}
+        of{' '}
+        <span className="font-medium text-surface-700 dark:text-surface-200">
+          {total}
+        </span>
       </p>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 sm:justify-end">
         <Button
           type="button"
           variant="secondary"
@@ -46,11 +54,12 @@ export function Pagination({
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
           aria-label="Previous page"
+          className="min-w-0"
         >
           <ChevronLeft className="h-4 w-4" />
-          Previous
+          <span className="hidden sm:inline">Previous</span>
         </Button>
-        <span className="min-w-20 text-center text-sm text-surface-600 dark:text-surface-300">
+        <span className="min-w-14 text-center text-sm text-surface-600 dark:text-surface-300">
           {page} / {totalPages}
         </span>
         <Button
@@ -60,8 +69,9 @@ export function Pagination({
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
           aria-label="Next page"
+          className="min-w-0"
         >
-          Next
+          <span className="hidden sm:inline">Next</span>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>

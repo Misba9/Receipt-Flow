@@ -119,7 +119,6 @@ function buildInvoiceEmailHtml(params: {
   customerName: string
   invoiceNumber: string
   issueDate: string
-  dueDate: string | null
   currency: string
   subtotal: number
   discount: number
@@ -136,7 +135,6 @@ function buildInvoiceEmailHtml(params: {
     customerName,
     invoiceNumber,
     issueDate,
-    dueDate,
     currency,
     subtotal,
     discount,
@@ -185,17 +183,9 @@ function buildInvoiceEmailHtml(params: {
             <td style="padding:0 32px 24px 32px;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
                 <tr>
-                  <td style="padding:16px 18px;font-size:13px;color:#64748b;width:50%;">Issue date</td>
+                  <td style="padding:16px 18px;font-size:13px;color:#64748b;width:50%;">Billing date</td>
                   <td style="padding:16px 18px;font-size:13px;color:#0f172a;text-align:right;font-weight:600;">${escapeHtml(issueDate)}</td>
                 </tr>
-                ${
-                  dueDate
-                    ? `<tr>
-                  <td style="padding:0 18px 16px 18px;font-size:13px;color:#64748b;">Due date</td>
-                  <td style="padding:0 18px 16px 18px;font-size:13px;color:#0f172a;text-align:right;font-weight:600;">${escapeHtml(dueDate)}</td>
-                </tr>`
-                    : ''
-                }
                 <tr>
                   <td style="padding:0 18px 12px 18px;font-size:13px;color:#64748b;">Subtotal</td>
                   <td style="padding:0 18px 12px 18px;font-size:13px;color:#0f172a;text-align:right;">${escapeHtml(formatMoney(subtotal, currency))}</td>
@@ -602,7 +592,6 @@ Deno.serve(async (req) => {
       customerName: row.customer?.name ?? 'Customer',
       invoiceNumber: row.invoice_number,
       issueDate: row.issue_date,
-      dueDate: row.due_date,
       currency: row.currency,
       subtotal: Number(row.subtotal),
       discount: Number(row.discount_amount),
