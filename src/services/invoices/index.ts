@@ -17,6 +17,10 @@ export type {
   CreateBillInput,
   InvoiceItem,
 } from '@/services/invoices/types'
+export {
+  INVOICE_STATUSES,
+  INVOICE_STATUS_LABELS,
+} from '@/services/invoices/types'
 export { calculateInvoiceTotals, lineAmount } from '@/services/invoices/calculations'
 export {
   generateInvoicePdf,

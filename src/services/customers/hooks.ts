@@ -6,7 +6,10 @@ import {
   updateCustomer,
 } from '@/services/customers/api'
 import type { CustomerInput, CustomersListParams } from '@/services/customers/types'
-import { dashboardKeys } from '@/services/dashboard/hooks'
+import {
+  companyStatsKeys,
+  dashboardKeys,
+} from '@/services/dashboard/hooks'
 import { useAuth } from '@/hooks/useAuth'
 
 export const customerKeys = {
@@ -31,6 +34,7 @@ function invalidateCustomerQueries(queryClient: ReturnType<typeof useQueryClient
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: customerKeys.all }),
     queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+    queryClient.invalidateQueries({ queryKey: companyStatsKeys.all }),
   ])
 }
 

@@ -53,6 +53,12 @@ function mapListItem(row: Record<string, unknown>): InvoiceListItem {
     tax_amount: Number(row.tax_amount ?? 0),
     discount_amount: Number(row.discount_amount ?? 0),
     total: Number(row.total ?? 0),
+    amount_paid: (() => {
+      const total = Number(row.total ?? 0)
+      const raw = row.amount_paid
+      if (raw != null && raw !== '') return Number(raw)
+      return row.status === 'paid' ? total : 0
+    })(),
     payment_mode: (row.payment_mode as PaymentMode | null) ?? null,
     payment_mode_other: (row.payment_mode_other as string | null) ?? null,
     model: (row.model as string | null) ?? null,
@@ -261,6 +267,9 @@ function buildInvoicePayload(
   const paymentModeOther =
     paymentMode === 'other' ? emptyToNull(input.payment_mode_other) : null
 
+  const isPaid = input.status === 'paid'
+  const isPartial = input.status === 'partially_paid'
+
   return {
     company_id: companyId,
     customer_id: input.customer_id,
@@ -281,7 +290,7 @@ function buildInvoicePayload(
     model: emptyToNull(input.model),
     place: emptyToNull(input.place),
     employee_name: emptyToNull(input.employee_name),
-    paid_at: input.status === 'paid' ? new Date().toISOString() : null,
+    paid_at: isPaid || isPartial ? new Date().toISOString() : null,
     created_by: userId,
   }
 }
@@ -356,7 +365,52 @@ export async function createBill(input: CreateBillInput): Promise<string> {
   return createInvoice({
     ...input.invoice,
     customer_id: customer.id,
+    // Completed counter sale — always recognize revenue.
+    status: 'paid',
   })
+}
+
+/**
+ * Bills created before paid-on-create always used status=draft even though
+ * payment_mode was required. Promote those completed sales to paid so
+ * Dashboard / Reports revenue matches the invoice list.
+ */
+export async function finalizeDraftSalesWithPayment(
+  companyId: string,
+): Promise<number> {
+  const { data: drafts, error } = await supabase
+    .from('invoices')
+    .select('id, created_at, issue_date')
+    .eq('company_id', companyId)
+    .eq('status', 'draft')
+    .not('payment_mode', 'is', null)
+
+  if (error) throw error
+  if (!drafts?.length) return 0
+
+  let updated = 0
+  for (const row of drafts) {
+    const paidAt =
+      (row.created_at as string | null) ??
+      (row.issue_date
+        ? `${String(row.issue_date)}T12:00:00.000Z`
+        : new Date().toISOString())
+
+    const { error: updateError } = await supabase
+      .from('invoices')
+      .update({
+        status: 'paid',
+        paid_at: paidAt,
+      })
+      .eq('id', row.id)
+      .eq('company_id', companyId)
+      .eq('status', 'draft')
+
+    if (updateError) throw updateError
+    updated += 1
+  }
+
+  return updated
 }
 
 export async function updateInvoice(
@@ -377,8 +431,11 @@ export async function updateInvoice(
     due_days: defaults.due_days,
   })
 
-  // Keep paid_at if already paid and still paid
-  if (input.status === 'paid' && existing.paid_at) {
+  // Preserve original payment timestamp when still paid / partially paid
+  if (
+    (input.status === 'paid' || input.status === 'partially_paid') &&
+    existing.paid_at
+  ) {
     payload.paid_at = existing.paid_at
   }
 

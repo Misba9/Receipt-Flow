@@ -20,9 +20,12 @@ import type {
   InvoiceDefaults,
   InvoiceDetail,
   InvoiceInput,
+  InvoiceStatus,
   PaymentMode,
 } from '@/services/invoices/types'
 import {
+  INVOICE_STATUS_LABELS,
+  INVOICE_STATUSES,
   PAYMENT_MODE_LABELS,
   PAYMENT_MODES,
 } from '@/services/invoices/types'
@@ -41,6 +44,7 @@ type InvoiceFormValues = {
   invoice_number: string
   customer_id: string
   issue_date: string
+  status: InvoiceStatus
   discount_amount: number
   tax_rate: number
   notes: string
@@ -68,6 +72,13 @@ const paymentModeOptions = [
   })),
 ]
 
+const statusOptions = INVOICE_STATUSES.filter(
+  (status) => status !== 'void',
+).map((status) => ({
+  value: status,
+  label: INVOICE_STATUS_LABELS[status],
+}))
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -86,6 +97,7 @@ function buildDefaultValues(
       invoice_number: invoice.invoice_number,
       customer_id: invoice.customer_id,
       issue_date: invoice.issue_date,
+      status: invoice.status,
       discount_amount: invoice.discount_amount,
       tax_rate: invoice.tax_rate,
       notes: invoice.notes ?? '',
@@ -113,6 +125,7 @@ function buildDefaultValues(
     invoice_number: defaults?.invoice_number ?? '',
     customer_id: '',
     issue_date: todayIso(),
+    status: 'paid',
     discount_amount: 0,
     tax_rate: defaults?.tax_rate ?? 0,
     notes: '',
@@ -180,7 +193,8 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
     const invoiceFields = {
       invoice_number: values.invoice_number.trim(),
       issue_date: values.issue_date,
-      status: isEdit ? (invoice?.status ?? 'draft') : 'draft',
+      // Create-bill requires payment → completed sale is paid.
+      status: isEdit ? values.status : 'paid',
       discount_amount: Number(values.discount_amount) || 0,
       tax_rate: Number(values.tax_rate) || 0,
       notes: values.notes.trim(),
@@ -384,6 +398,15 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             error={errors.issue_date?.message}
             {...register('issue_date', { required: 'Billing date is required' })}
           />
+          {isEdit ? (
+            <Select
+              label="Status"
+              disabled={submitting}
+              error={errors.status?.message}
+              options={statusOptions}
+              {...register('status', { required: 'Status is required' })}
+            />
+          ) : null}
           <Input
             label="Employee name"
             placeholder="Optional"

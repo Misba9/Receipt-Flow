@@ -14,6 +14,7 @@ export const CHART_COLORS = {
 
 export const STATUS_CHART_COLORS: Record<string, string> = {
   paid: CHART_COLORS.emerald,
+  partially_paid: CHART_COLORS.amber,
   sent: CHART_COLORS.sky,
   overdue: CHART_COLORS.rose,
   draft: CHART_COLORS.slate,

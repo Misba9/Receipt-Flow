@@ -37,6 +37,8 @@ export type RevenueSummary = {
   paidCount: number
   invoiceCount: number
   currency: string
+  /** Fully paid invoices with payment date = today (shared with Dashboard). */
+  todaysSales: number
 }
 
 export type ReportsData = {

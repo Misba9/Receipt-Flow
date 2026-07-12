@@ -54,6 +54,7 @@ export function downloadReportsCsv(data: ReportsData) {
         'Paid Invoices',
         'All Invoices',
         'Currency',
+        "Today's Sales",
       ],
       [
         [
@@ -64,6 +65,7 @@ export function downloadReportsCsv(data: ReportsData) {
           data.revenue.paidCount,
           data.revenue.invoiceCount,
           data.revenue.currency,
+          data.revenue.todaysSales,
         ],
       ],
     ),

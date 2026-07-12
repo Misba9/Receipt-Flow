@@ -9,7 +9,7 @@ import { Alert, Button, Card, Pagination, SearchInput, Select } from '@/componen
 import { exportInvoicesExcel } from '@/services/exports'
 import { useInvoices } from '@/services/invoices/hooks'
 import type { InvoiceListItem, InvoiceStatus } from '@/services/invoices/types'
-import { INVOICE_STATUSES } from '@/services/invoices/types'
+import { INVOICE_STATUS_LABELS, INVOICE_STATUSES } from '@/services/invoices/types'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { paths } from '@/lib/paths'
 
@@ -19,7 +19,7 @@ const statusFilterOptions = [
   { value: 'all', label: 'All statuses' },
   ...INVOICE_STATUSES.map((status) => ({
     value: status,
-    label: status.charAt(0).toUpperCase() + status.slice(1),
+    label: INVOICE_STATUS_LABELS[status],
   })),
 ]
 

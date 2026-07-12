@@ -2,6 +2,7 @@ export type InvoiceStatus =
   | 'draft'
   | 'sent'
   | 'paid'
+  | 'partially_paid'
   | 'overdue'
   | 'cancelled'
   | 'void'
@@ -10,10 +11,21 @@ export const INVOICE_STATUSES: InvoiceStatus[] = [
   'draft',
   'sent',
   'paid',
+  'partially_paid',
   'overdue',
   'cancelled',
   'void',
 ]
+
+export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  draft: 'Draft',
+  sent: 'Sent',
+  paid: 'Paid',
+  partially_paid: 'Partially Paid',
+  overdue: 'Overdue',
+  cancelled: 'Cancelled',
+  void: 'Void',
+}
 
 export type PaymentMode =
   | 'cash'
@@ -73,6 +85,7 @@ export type InvoiceListItem = {
   tax_amount: number
   discount_amount: number
   total: number
+  amount_paid: number
   payment_mode: PaymentMode | null
   payment_mode_other: string | null
   model: string | null
@@ -105,6 +118,7 @@ export type InvoiceInput = {
   customer_id: string
   issue_date: string
   status: InvoiceStatus
+  amount_paid?: number
   discount_amount: number
   tax_rate: number
   notes: string

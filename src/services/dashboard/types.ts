@@ -25,5 +25,6 @@ export type DashboardStats = {
   totalCustomers: number
   totalInvoices: number
   revenue: number
+  outstanding: number
   currency: string
 }

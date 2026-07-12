@@ -4,6 +4,7 @@ export {
   useLatestCustomers,
   useRecentInvoices,
   dashboardKeys,
+  companyStatsKeys,
 } from '@/services/dashboard/hooks'
 export type {
   DashboardStats,

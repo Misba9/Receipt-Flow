@@ -1,21 +1,40 @@
 import { useQuery } from '@tanstack/react-query'
+import { fetchLatestCustomers } from '@/services/dashboard/api'
 import {
-  fetchDashboardStats,
-  fetchLatestCustomers,
+  fetchCompanyStats,
   fetchRecentInvoices,
-} from '@/services/dashboard/api'
+} from '@/services/dashboardStats'
+import type { DashboardStats } from '@/services/dashboard/types'
+
+export const companyStatsKeys = {
+  all: ['company-stats'] as const,
+}
 
 export const dashboardKeys = {
   all: ['dashboard'] as const,
-  stats: () => [...dashboardKeys.all, 'stats'] as const,
+  stats: () => companyStatsKeys.all,
   latestCustomers: () => [...dashboardKeys.all, 'latest-customers'] as const,
   recentInvoices: () => [...dashboardKeys.all, 'recent-invoices'] as const,
 }
 
+function toDashboardStats(
+  stats: Awaited<ReturnType<typeof fetchCompanyStats>>,
+): DashboardStats {
+  return {
+    todaysSales: stats.revenue.todaysSales,
+    totalCustomers: stats.customerCount,
+    totalInvoices: stats.invoiceCount,
+    revenue: stats.revenue.totalRevenue,
+    outstanding: stats.revenue.outstanding,
+    currency: stats.currency,
+  }
+}
+
 export function useDashboardStats() {
   return useQuery({
-    queryKey: dashboardKeys.stats(),
-    queryFn: fetchDashboardStats,
+    queryKey: companyStatsKeys.all,
+    queryFn: fetchCompanyStats,
+    select: toDashboardStats,
   })
 }
 

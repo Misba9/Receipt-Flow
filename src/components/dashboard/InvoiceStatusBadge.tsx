@@ -9,6 +9,7 @@ const statusConfig: Record<
   draft: { label: 'Draft', variant: 'default' },
   sent: { label: 'Sent', variant: 'info' },
   paid: { label: 'Paid', variant: 'success' },
+  partially_paid: { label: 'Partially Paid', variant: 'warning' },
   overdue: { label: 'Overdue', variant: 'danger' },
   cancelled: { label: 'Cancelled', variant: 'default' },
   void: { label: 'Void', variant: 'warning' },

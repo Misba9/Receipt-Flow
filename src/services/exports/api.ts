@@ -99,6 +99,9 @@ export async function fetchInvoicesForExport(): Promise<InvoiceListItem[]> {
         tax_amount: Number(row.tax_amount ?? 0),
         discount_amount: Number(row.discount_amount ?? 0),
         total: Number(row.total ?? 0),
+        amount_paid: Number(
+          (row as { amount_paid?: number | null }).amount_paid ?? 0,
+        ),
         payment_mode: (row.payment_mode as PaymentMode | null) ?? null,
         payment_mode_other:
           (row.payment_mode_other as string | null) ?? null,

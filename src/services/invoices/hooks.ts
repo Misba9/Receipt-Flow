@@ -15,7 +15,10 @@ import type {
   InvoicesListParams,
 } from '@/services/invoices/types'
 import { customerKeys } from '@/services/customers/hooks'
-import { dashboardKeys } from '@/services/dashboard/hooks'
+import {
+  companyStatsKeys,
+  dashboardKeys,
+} from '@/services/dashboard/hooks'
 import { useAuth } from '@/hooks/useAuth'
 
 export const invoiceKeys = {
@@ -32,6 +35,7 @@ function invalidateInvoiceQueries(queryClient: ReturnType<typeof useQueryClient>
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: invoiceKeys.all }),
     queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+    queryClient.invalidateQueries({ queryKey: companyStatsKeys.all }),
   ])
 }
 

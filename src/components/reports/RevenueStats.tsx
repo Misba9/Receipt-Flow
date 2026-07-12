@@ -25,14 +25,14 @@ export function RevenueStats({ revenue, loading = false }: RevenueStatsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard
-        title="Total revenue"
+        title="Total Revenue"
         value={formatCurrency(revenue?.totalRevenue ?? 0, currency)}
         description={`${formatNumber(revenue?.paidCount ?? 0)} paid invoices`}
         icon={CircleDollarSign}
         loading={loading}
       />
       <StatCard
-        title="This month"
+        title="Revenue this month"
         value={formatCurrency(revenue?.thisMonthRevenue ?? 0, currency)}
         description="Paid this calendar month"
         icon={TrendingUp}
@@ -50,15 +50,15 @@ export function RevenueStats({ revenue, loading = false }: RevenueStatsProps) {
       <StatCard
         title="Outstanding"
         value={formatCurrency(revenue?.outstanding ?? 0, currency)}
-        description="Draft, sent, and overdue"
+        description="Sent, overdue & partial"
         icon={Banknote}
         loading={loading}
         iconClassName="bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300"
       />
       <StatCard
-        title="All invoices"
+        title="Total invoices"
         value={formatNumber(revenue?.invoiceCount ?? 0)}
-        description="Every status included"
+        description="All invoices"
         icon={FileText}
         loading={loading}
         iconClassName="bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-300"
