@@ -29,7 +29,7 @@ export function LandingHero() {
             className="animate-landing-fade-up mt-4 max-w-2xl text-lg leading-snug font-medium text-white/95 sm:mt-5 sm:text-2xl md:text-3xl"
             style={{ animationDelay: '90ms' }}
           >
-            Invoices that look like your brand — paid faster.
+            Invoices that look like your brand — sent and tracked in one place.
           </h1>
           <p
             className="animate-landing-fade-up mt-3 max-w-lg text-sm leading-relaxed text-white/70 sm:mt-4 sm:text-base md:text-lg"
@@ -46,23 +46,23 @@ export function LandingHero() {
               to={paths.register}
               className="inline-flex h-11 items-center justify-center rounded-lg bg-white px-5 text-sm font-semibold text-surface-950 transition-colors hover:bg-brand-50"
             >
-              Start free trial
+              Get started
             </Link>
             <a
-              href="#features"
+              href="#details"
               className="inline-flex h-11 items-center justify-center rounded-lg border border-white/25 bg-white/5 px-5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/10"
             >
-              See how it works
+              Project details
             </a>
           </div>
         </div>
 
-        {/* Product preview — flows below copy so short viewports never clip */}
+        {/* Product preview — no monetary amounts */}
         <div
           className="relative mt-6 w-full border-t border-white/10 bg-white text-surface-900 sm:mt-8"
           aria-hidden
         >
-          <div className="mx-auto grid max-w-6xl grid-cols-12 px-0 sm:px-0">
+          <div className="mx-auto grid max-w-6xl grid-cols-12">
             <div className="col-span-4 hidden border-r border-surface-100 py-6 pr-6 md:block">
               <p className="text-[11px] font-semibold tracking-wider text-surface-400 uppercase">
                 Customers
@@ -94,31 +94,27 @@ export function LandingHero() {
                     Northwind Labs
                   </p>
                 </div>
-                <p className="shrink-0 font-display text-2xl font-semibold tabular-nums text-surface-950 sm:text-3xl">
-                  $2,480
-                </p>
+                <span className="shrink-0 text-xs font-semibold tracking-wide text-emerald-700 uppercase">
+                  Paid
+                </span>
               </div>
               <div className="mt-4 space-y-2 sm:mt-6">
                 {[
-                  ['Design retainer — March', '$1,800'],
-                  ['Hosting & support', '$480'],
-                  ['Rush delivery', '$200'],
-                ].map(([label, amount]) => (
+                  ['Design retainer — March', 'Service'],
+                  ['Hosting & support', 'Subscription'],
+                  ['Rush delivery', 'Add-on'],
+                ].map(([label, type]) => (
                   <div
                     key={label}
                     className="flex items-center justify-between gap-3 border-b border-surface-100 pb-2 text-sm"
                   >
                     <span className="min-w-0 truncate text-surface-600">{label}</span>
-                    <span className="shrink-0 font-medium tabular-nums text-surface-900">
-                      {amount}
-                    </span>
+                    <span className="shrink-0 text-surface-500">{type}</span>
                   </div>
                 ))}
               </div>
               <div className="mt-4 flex items-center justify-between gap-3 sm:mt-6">
-                <span className="text-xs font-semibold tracking-wide text-emerald-700 uppercase">
-                  Paid
-                </span>
+                <span className="text-xs text-surface-500">3 line items</span>
                 <span className="bg-brand-600 px-3 py-1.5 text-xs font-medium text-white">
                   Email PDF
                 </span>

@@ -7,7 +7,7 @@ import { paths } from '@/lib/paths'
 
 const links = [
   { label: 'Features', href: '#features' },
-  { label: 'Pricing', href: '#pricing' },
+  { label: 'Details', href: '#details' },
   { label: 'FAQ', href: '#faq' },
   { label: 'Contact', href: '#contact' },
 ]
@@ -100,7 +100,7 @@ export function LandingNav() {
                     : 'bg-white text-surface-950 hover:bg-brand-50',
                 )}
               >
-                Start free
+                Get started
               </Link>
             </>
           )}
@@ -157,7 +157,7 @@ export function LandingNav() {
                   className="mt-1 rounded-lg bg-brand-600 px-3 py-2.5 text-center text-sm font-medium text-white"
                   onClick={() => setOpen(false)}
                 >
-                  Start free
+                  Get started
                 </Link>
               </>
             )}

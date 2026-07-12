@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { LandingContact } from '@/components/landing/LandingContact'
+import { LandingDetails } from '@/components/landing/LandingDetails'
 import { LandingFaq } from '@/components/landing/LandingFaq'
 import { faqItems } from '@/components/landing/faq-data'
 import { LandingFeatures } from '@/components/landing/LandingFeatures'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 import { LandingHero } from '@/components/landing/LandingHero'
 import { LandingNav } from '@/components/landing/LandingNav'
-import { LandingPricing } from '@/components/landing/LandingPricing'
 import { LandingTestimonials } from '@/components/landing/LandingTestimonials'
 import { APP_NAME } from '@/utils'
 import { env } from '@/lib/env'
@@ -53,12 +53,6 @@ export function LandingPage() {
       operatingSystem: 'Web',
       description: PAGE_DESCRIPTION,
       url: pageUrl,
-      offers: {
-        '@type': 'Offer',
-        price: '0',
-        priceCurrency: 'USD',
-        description: 'Free trial available',
-      },
     }
 
     const faqLd = {
@@ -107,7 +101,7 @@ export function LandingPage() {
       <main>
         <LandingHero />
         <LandingFeatures />
-        <LandingPricing />
+        <LandingDetails />
         <LandingTestimonials />
         <LandingFaq />
         <LandingContact />

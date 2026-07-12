@@ -4,7 +4,7 @@ import { paths } from '@/lib/paths'
 
 const footerLinks = [
   { label: 'Features', href: '#features' },
-  { label: 'Pricing', href: '#pricing' },
+  { label: 'Details', href: '#details' },
   { label: 'FAQ', href: '#faq' },
   { label: 'Contact', href: '#contact' },
 ]
