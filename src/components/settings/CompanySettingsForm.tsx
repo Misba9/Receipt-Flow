@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
 import { Textarea } from '@/components/ui/Textarea'
 import {
@@ -19,6 +20,10 @@ import {
   useUpdateCompanySettings,
   useUploadCompanyLogo,
 } from '@/services/settings/hooks'
+import {
+  ensureCurrencyOption,
+  ensureTimezoneOption,
+} from '@/services/settings/options'
 import type {
   CompanySettings,
   CompanySettingsInput,
@@ -40,6 +45,9 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
+  const currencyOptions = ensureCurrencyOption(settings.currency)
+  const timezoneOptions = ensureTimezoneOption(settings.timezone)
+
   const {
     register,
     control,
@@ -60,6 +68,9 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
       logoUrl: settings.logoUrl,
       primaryColor: settings.primaryColor,
       invoiceFooter: settings.invoiceFooter,
+      currency: settings.currency,
+      timezone: settings.timezone,
+      invoicePrefix: settings.invoicePrefix,
     },
   })
 
@@ -75,8 +86,13 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
         ...values,
         logoUrl,
         primaryColor: values.primaryColor.toLowerCase(),
+        currency: values.currency.trim().toUpperCase(),
+        timezone: values.timezone.trim(),
+        invoicePrefix: values.invoicePrefix.trim(),
       })
-      setSuccessMessage('Company settings saved.')
+      setSuccessMessage(
+        'Company settings saved. New invoices and PDFs will use these details.',
+      )
     } catch (error) {
       setFormError(
         error instanceof Error ? error.message : 'Unable to save settings.',
@@ -126,7 +142,7 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
           <div>
             <CardTitle>Company profile</CardTitle>
             <CardDescription>
-              Details shown on invoices and shared with your team.
+              Name, logo, and contact details shown on invoices and PDFs.
             </CardDescription>
           </div>
         </CardHeader>
@@ -176,7 +192,7 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
           </div>
 
           <Input
-            label="GST / Tax ID"
+            label="GST number"
             placeholder="GSTIN / VAT / EIN"
             disabled={disabled}
             error={errors.taxId?.message}
@@ -190,7 +206,7 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
           <div>
             <CardTitle>Address</CardTitle>
             <CardDescription>
-              Business address for invoices and letters.
+              Business address printed on invoices and letters.
             </CardDescription>
           </div>
         </CardHeader>
@@ -231,38 +247,51 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>Branding</CardTitle>
+            <CardTitle>Invoicing & localization</CardTitle>
             <CardDescription>
-              Each company keeps its own colors and invoice footer.
+              Currency, timezone, and invoice numbering for this company only.
             </CardDescription>
           </div>
         </CardHeader>
 
         <div className="space-y-4">
-          <Controller
-            name="primaryColor"
-            control={control}
-            rules={{
-              required: 'Primary color is required',
-              pattern: {
-                value: HEX_PATTERN,
-                message: 'Use a hex color like #1a73f5',
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select
+              label="Currency"
+              disabled={disabled}
+              options={currencyOptions}
+              error={errors.currency?.message}
+              {...register('currency', {
+                required: 'Currency is required',
+                pattern: {
+                  value: /^[A-Za-z]{3}$/,
+                  message: 'Use a 3-letter currency code',
+                },
+              })}
+            />
+            <Select
+              label="Timezone"
+              disabled={disabled}
+              options={timezoneOptions}
+              error={errors.timezone?.message}
+              {...register('timezone', {
+                required: 'Timezone is required',
+              })}
+            />
+          </div>
+
+          <Input
+            label="Invoice prefix"
+            placeholder="INV-"
+            disabled={disabled}
+            error={errors.invoicePrefix?.message}
+            {...register('invoicePrefix', {
+              required: 'Invoice prefix is required',
+              maxLength: {
+                value: 20,
+                message: 'Prefix must be 20 characters or less',
               },
-            }}
-            render={({ field }) => (
-              <ColorField
-                label="Primary color"
-                value={field.value}
-                disabled={disabled}
-                error={errors.primaryColor?.message}
-                onChange={(value) => {
-                  field.onChange(value)
-                  if (HEX_PATTERN.test(value)) {
-                    applyBrandColor(value)
-                  }
-                }}
-              />
-            )}
+            })}
           />
 
           <Textarea
@@ -280,9 +309,49 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
         </div>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Brand color</CardTitle>
+            <CardDescription>
+              Used on invoices, PDFs, and your workspace accent.
+            </CardDescription>
+          </div>
+        </CardHeader>
+
+        <div className="space-y-4">
+          <Controller
+            name="primaryColor"
+            control={control}
+            rules={{
+              required: 'Brand color is required',
+              pattern: {
+                value: HEX_PATTERN,
+                message: 'Use a hex color like #1a73f5',
+              },
+            }}
+            render={({ field }) => (
+              <ColorField
+                label="Brand color"
+                value={field.value}
+                disabled={disabled}
+                error={errors.primaryColor?.message}
+                onChange={(value) => {
+                  field.onChange(value)
+                  if (HEX_PATTERN.test(value)) {
+                    applyBrandColor(value)
+                  }
+                }}
+              />
+            )}
+          />
+        </div>
+      </Card>
+
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-surface-500 dark:text-surface-400">
-          Changes apply to your company only. Other tenants are unaffected.
+          Settings are isolated per company. Other tenants never see these
+          values.
         </p>
         <Button
           type="submit"

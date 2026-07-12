@@ -15,6 +15,9 @@ export type CompanySettings = {
   logoUrl: string | null
   primaryColor: string
   invoiceFooter: string
+  currency: string
+  timezone: string
+  invoicePrefix: string
   role: ProfileRole
   canEdit: boolean
 }
@@ -33,4 +36,7 @@ export type CompanySettingsInput = {
   logoUrl: string | null
   primaryColor: string
   invoiceFooter: string
+  currency: string
+  timezone: string
+  invoicePrefix: string
 }

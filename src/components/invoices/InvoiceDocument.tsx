@@ -32,6 +32,7 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
                 {company?.email ? <p>{company.email}</p> : null}
                 {company?.phone ? <p>{company.phone}</p> : null}
                 {company?.addressLine1 ? <p>{company.addressLine1}</p> : null}
+                {company?.addressLine2 ? <p>{company.addressLine2}</p> : null}
                 {[company?.city, company?.state, company?.postalCode]
                   .filter(Boolean)
                   .join(', ') ? (
@@ -41,6 +42,7 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
                       .join(', ')}
                   </p>
                 ) : null}
+                {company?.country ? <p>{company.country}</p> : null}
                 {company?.taxId ? <p>GST: {company.taxId}</p> : null}
               </div>
             </div>
@@ -80,12 +82,24 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-6 sm:justify-end">
               <dt className="text-surface-500">Issue date</dt>
-              <dd className="font-medium">{formatDate(invoice.issue_date)}</dd>
+              <dd className="font-medium">
+                {formatDate(
+                  invoice.issue_date,
+                  undefined,
+                  company?.timezone,
+                )}
+              </dd>
             </div>
             {invoice.due_date ? (
               <div className="flex justify-between gap-6 sm:justify-end">
                 <dt className="text-surface-500">Due date</dt>
-                <dd className="font-medium">{formatDate(invoice.due_date)}</dd>
+                <dd className="font-medium">
+                  {formatDate(
+                    invoice.due_date,
+                    undefined,
+                    company?.timezone,
+                  )}
+                </dd>
               </div>
             ) : null}
           </dl>

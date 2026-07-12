@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { FileText, Mail, Pencil, Trash2 } from 'lucide-react'
+import { Eye, FileText, Mail, Pencil, Trash2 } from 'lucide-react'
 import { DeleteInvoiceDialog } from '@/components/invoices/DeleteInvoiceDialog'
+import { DemoModeEmailBadge } from '@/components/invoices/DemoModeEmailBadge'
 import { DownloadInvoicePdfButton } from '@/components/invoices/DownloadInvoicePdfButton'
+import { EmailPreviewModal } from '@/components/invoices/EmailPreviewModal'
 import { InvoiceDocument } from '@/components/invoices/InvoiceDocument'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Alert, Button, Card, EmptyState, Spinner } from '@/components/ui'
+import { EmailService, type InvoiceEmailPreview } from '@/services/email'
 import { deliverNewInvoice } from '@/services/invoices/deliver'
 import type { InvoiceDeliveryResult } from '@/services/invoices/deliver'
 import { useInvoice, invoiceKeys } from '@/services/invoices/hooks'
 import { useCompanySettings } from '@/services/settings/hooks'
+import { useToast } from '@/hooks/useToast'
 import { useQueryClient } from '@tanstack/react-query'
 import { paths } from '@/lib/paths'
 
@@ -22,9 +26,12 @@ export function InvoiceDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const { data, isLoading, isError, error } = useInvoice(id)
   const { data: company } = useCompanySettings()
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [preview, setPreview] = useState<InvoiceEmailPreview | null>(null)
   const [delivery, setDelivery] = useState<InvoiceDeliveryResult | null>(
     (location.state as LocationState | null)?.delivery ?? null,
   )
@@ -39,14 +46,43 @@ export function InvoiceDetailPage() {
       await queryClient.invalidateQueries({
         queryKey: invoiceKeys.detail(data.id),
       })
+
+      if (result.status === 'sent' && result.mode === 'development') {
+        toast(
+          'Demo Mode: Invoice would have been sent successfully.',
+          'success',
+        )
+      } else if (result.status === 'sent') {
+        toast(result.message ?? 'Invoice email sent.', 'success')
+      } else if (result.status === 'failed') {
+        toast(result.message ?? 'Unable to send invoice email.', 'error')
+      } else if (result.status === 'skipped') {
+        toast(result.message ?? 'Email skipped.', 'info')
+      }
     } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Unable to send invoice email.'
       setDelivery({
         status: 'failed',
-        message:
-          err instanceof Error ? err.message : 'Unable to send invoice email.',
+        message,
       })
+      toast(message, 'error')
     } finally {
       setIsSending(false)
+    }
+  }
+
+  const handlePreviewEmail = () => {
+    if (!data || !company) return
+    try {
+      const next = EmailService.previewInvoiceEmail(data, company)
+      setPreview(next)
+      setPreviewOpen(true)
+    } catch (err) {
+      toast(
+        err instanceof Error ? err.message : 'Unable to preview email.',
+        'error',
+      )
     }
   }
 
@@ -57,12 +93,21 @@ export function InvoiceDetailPage() {
         description="View invoice details, download PDF, or email the customer."
         actions={
           <>
+            <DemoModeEmailBadge />
             <Link to={paths.invoices}>
               <Button variant="secondary">Back</Button>
             </Link>
             {data ? (
               <>
                 <DownloadInvoicePdfButton invoice={data} />
+                <Button
+                  variant="secondary"
+                  disabled={!company}
+                  onClick={handlePreviewEmail}
+                >
+                  <Eye className="h-4 w-4" />
+                  Preview email
+                </Button>
                 <Button
                   variant="secondary"
                   disabled={isSending || !company}
@@ -134,6 +179,12 @@ export function InvoiceDetailPage() {
       ) : data ? (
         <InvoiceDocument invoice={data} />
       ) : null}
+
+      <EmailPreviewModal
+        open={previewOpen}
+        preview={preview}
+        onClose={() => setPreviewOpen(false)}
+      />
 
       <DeleteInvoiceDialog
         open={deleteOpen}

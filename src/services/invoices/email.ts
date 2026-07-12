@@ -34,10 +34,10 @@ async function messageFromFunctionsError(error: unknown): Promise<string> {
 }
 
 /**
- * Invokes the Supabase Edge Function that emails the invoice PDF via Resend.
- * Requires RESEND_API_KEY + RESEND_FROM_EMAIL as function secrets (not VITE_ vars).
+ * Production transport: invokes the Supabase Edge Function (Resend).
+ * Prefer `EmailService.sendInvoiceEmail` from app code so development mode is respected.
  */
-export async function sendInvoiceEmail(
+export async function invokeSendInvoiceEmail(
   invoiceId: string,
 ): Promise<SendInvoiceEmailResult> {
   const { data, error } = await supabase.functions.invoke('send-invoice-email', {
@@ -53,4 +53,19 @@ export async function sendInvoiceEmail(
   }
 
   return data as SendInvoiceEmailResult
+}
+
+/** @deprecated Use EmailService.sendInvoiceEmail — kept for compatibility. */
+export async function sendInvoiceEmail(
+  invoiceId: string,
+): Promise<SendInvoiceEmailResult> {
+  const { EmailService } = await import('@/services/email/EmailService')
+  const result = await EmailService.sendInvoiceEmail(invoiceId)
+
+  return {
+    ok: true,
+    id: result.id ?? null,
+    to: result.to ?? '',
+    subject: result.subject ?? '',
+  }
 }

@@ -12,7 +12,7 @@ export function SettingsPage() {
     <div>
       <PageHeader
         title="Company Settings"
-        description="Manage your company profile, logo, and invoice branding."
+        description="Configure profile, branding, currency, and invoice defaults for your company."
       />
 
       <div className="mx-auto max-w-3xl">
@@ -48,7 +48,7 @@ export function SettingsPage() {
           </div>
         ) : data ? (
           <CompanySettingsForm
-            key={`${data.companyId}-${data.logoUrl ?? 'no-logo'}-${data.primaryColor}`}
+            key={`${data.companyId}-${data.logoUrl ?? 'no-logo'}-${data.primaryColor}-${data.currency}-${data.timezone}-${data.invoicePrefix}`}
             settings={data}
           />
         ) : null}

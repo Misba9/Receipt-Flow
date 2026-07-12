@@ -1,5 +1,5 @@
+import { EmailService } from '@/services/email'
 import { fetchInvoice, uploadInvoicePdf } from '@/services/invoices/api'
-import { sendInvoiceEmail } from '@/services/invoices/email'
 import { generateInvoicePdf } from '@/services/invoices/pdf'
 import type { CompanySettings } from '@/services/settings/types'
 
@@ -9,10 +9,12 @@ export type InvoiceDeliveryResult = {
   status: InvoiceDeliveryStatus
   message?: string
   to?: string
+  mode?: 'development' | 'production'
 }
 
 /**
- * After an invoice is created: generate PDF → upload to Storage → email via Resend.
+ * After an invoice is created: generate PDF → upload to Storage → email via EmailService.
+ * PDF generation always runs; only the email transport respects development mode.
  */
 export async function deliverNewInvoice(
   invoiceId: string,
@@ -33,11 +35,15 @@ export async function deliverNewInvoice(
   }
 
   try {
-    const result = await sendInvoiceEmail(invoiceId)
+    const result = await EmailService.sendInvoiceEmail(invoiceId)
     return {
       status: 'sent',
-      to: result.to,
-      message: `Invoice emailed to ${result.to}.`,
+      to: result.to ?? customerEmail,
+      mode: result.mode,
+      message:
+        result.mode === 'development'
+          ? 'Demo Mode: Invoice would have been sent successfully.'
+          : result.message,
     }
   } catch (error) {
     return {

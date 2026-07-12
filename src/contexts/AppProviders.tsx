@@ -4,6 +4,7 @@ import { AuthProvider } from '@/contexts/AuthProvider'
 import { CompanyBrandingProvider } from '@/contexts/CompanyBrandingProvider'
 import { QueryProvider } from '@/contexts/QueryProvider'
 import { ThemeProvider } from '@/contexts/ThemeProvider'
+import { ToastProvider } from '@/contexts/ToastProvider'
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -11,7 +12,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <ThemeProvider>
         <BrowserRouter>
           <AuthProvider>
-            <CompanyBrandingProvider>{children}</CompanyBrandingProvider>
+            <CompanyBrandingProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </CompanyBrandingProvider>
           </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>

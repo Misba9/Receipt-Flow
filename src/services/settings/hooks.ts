@@ -6,6 +6,8 @@ import {
   removeCompanyLogo,
 } from '@/services/settings/api'
 import type { CompanySettingsInput } from '@/services/settings/types'
+import { invoiceKeys } from '@/services/invoices/hooks'
+import { dashboardKeys } from '@/services/dashboard/hooks'
 import { useAuth } from '@/hooks/useAuth'
 
 export const settingsKeys = {
@@ -29,7 +31,11 @@ export function useUpdateCompanySettings() {
   return useMutation({
     mutationFn: (input: CompanySettingsInput) => updateCompanySettings(input),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: settingsKeys.company() })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: settingsKeys.company() }),
+        queryClient.invalidateQueries({ queryKey: invoiceKeys.defaults() }),
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+      ])
     },
   })
 }

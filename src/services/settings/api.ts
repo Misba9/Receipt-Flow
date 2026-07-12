@@ -13,6 +13,36 @@ function emptyToNull(value: string) {
   return trimmed.length > 0 ? trimmed : null
 }
 
+function normalizeCurrency(value: string) {
+  const code = value.trim().toUpperCase()
+  if (!/^[A-Z]{3}$/.test(code)) {
+    throw new Error('Currency must be a 3-letter ISO code (e.g. USD).')
+  }
+  return code
+}
+
+function normalizeInvoicePrefix(value: string) {
+  const prefix = value.trim()
+  if (!prefix) {
+    throw new Error('Invoice prefix is required.')
+  }
+  if (prefix.length > 20) {
+    throw new Error('Invoice prefix must be 20 characters or less.')
+  }
+  return prefix
+}
+
+function normalizeTimezone(value: string) {
+  const timezone = value.trim() || 'UTC'
+  try {
+    // Throws RangeError for invalid IANA zones in modern runtimes
+    Intl.DateTimeFormat(undefined, { timeZone: timezone })
+  } catch {
+    throw new Error('Enter a valid timezone (e.g. Asia/Kolkata).')
+  }
+  return timezone
+}
+
 export async function fetchCompanySettings(): Promise<CompanySettings> {
   const {
     data: { user },
@@ -43,16 +73,20 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
           'id, name, email, phone, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url',
         )
         .eq('id', companyId)
-        .single(),
+        .maybeSingle(),
       supabase
         .from('settings')
-        .select('primary_color, invoice_footer')
+        .select(
+          'primary_color, invoice_footer, default_currency, timezone, invoice_prefix',
+        )
         .eq('company_id', companyId)
-        .single(),
+        .maybeSingle(),
     ])
 
   if (companyError) throw companyError
   if (settingsError) throw settingsError
+  if (!company) throw new Error('Company not found.')
+  if (!settings) throw new Error('Company settings not found.')
 
   const role = profile.role as ProfileRole
 
@@ -71,16 +105,26 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
     logoUrl: company.logo_url,
     primaryColor: settings.primary_color ?? '#1a73f5',
     invoiceFooter: settings.invoice_footer ?? '',
+    currency: settings.default_currency ?? 'USD',
+    timezone: settings.timezone ?? 'UTC',
+    invoicePrefix: settings.invoice_prefix ?? 'INV-',
     role,
     canEdit: role === 'owner' || role === 'admin',
   }
 }
 
-/** Updates the signed-in user's company only — company id is never taken from the client. */
+/**
+ * Updates the signed-in user's company only.
+ * Company id is resolved server-side via RLS / tenant context — never from the client payload.
+ */
 export async function updateCompanySettings(
   input: CompanySettingsInput,
 ): Promise<void> {
   const companyId = await getCurrentCompanyId()
+
+  const currency = normalizeCurrency(input.currency)
+  const timezone = normalizeTimezone(input.timezone)
+  const invoicePrefix = normalizeInvoicePrefix(input.invoicePrefix)
 
   const [{ error: companyError }, { error: settingsError }] = await Promise.all([
     supabase
@@ -104,6 +148,9 @@ export async function updateCompanySettings(
       .update({
         primary_color: input.primaryColor,
         invoice_footer: emptyToNull(input.invoiceFooter),
+        default_currency: currency,
+        timezone,
+        invoice_prefix: invoicePrefix,
       })
       .eq('company_id', companyId),
   ])
@@ -128,7 +175,6 @@ export async function uploadCompanyLogo(file: File): Promise<string> {
   if (uploadError) throw uploadError
 
   const { data } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path)
-  // Bust CDN/browser cache after replace
   return `${data.publicUrl}?v=${Date.now()}`
 }
 

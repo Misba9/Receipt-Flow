@@ -330,7 +330,7 @@ export async function generateInvoicePdf(
   )
   drawRightText(
     page,
-    `Date: ${formatDate(invoice.issue_date)}`,
+    `Date: ${formatDate(invoice.issue_date, undefined, company.timezone)}`,
     metaRight,
     y - 52,
     font,
@@ -340,7 +340,7 @@ export async function generateInvoicePdf(
   if (invoice.due_date) {
     drawRightText(
       page,
-      `Due: ${formatDate(invoice.due_date)}`,
+      `Due: ${formatDate(invoice.due_date, undefined, company.timezone)}`,
       metaRight,
       y - 66,
       font,

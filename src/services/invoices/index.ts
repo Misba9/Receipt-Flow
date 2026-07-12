@@ -29,9 +29,11 @@ export {
   createInvoicePdfSignedUrl,
   INVOICE_PDF_BUCKET,
 } from '@/services/invoices/api'
-export { sendInvoiceEmail } from '@/services/invoices/email'
+export { sendInvoiceEmail, invokeSendInvoiceEmail } from '@/services/invoices/email'
 export { deliverNewInvoice } from '@/services/invoices/deliver'
 export type {
   InvoiceDeliveryResult,
   InvoiceDeliveryStatus,
 } from '@/services/invoices/deliver'
+export { EmailService, isEmailDevelopmentMode, getEmailMode } from '@/services/email'
+export type { EmailSendSuccess, InvoiceEmailPreview } from '@/services/email'
