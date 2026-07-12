@@ -1,7 +1,11 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentCompanyId } from '@/lib/tenant'
 import type { Customer } from '@/services/customers/types'
-import type { InvoiceListItem, InvoiceStatus } from '@/services/invoices/types'
+import type {
+  InvoiceListItem,
+  InvoiceStatus,
+  PaymentMode,
+} from '@/services/invoices/types'
 
 async function fetchAllPages<T>(
   fetchPage: (
@@ -63,8 +67,13 @@ export async function fetchInvoicesForExport(): Promise<InvoiceListItem[]> {
         tax_amount,
         discount_amount,
         total,
+        payment_mode,
+        payment_mode_other,
+        model,
+        place,
+        employee_name,
         created_at,
-        customer:customers(id, name, email, phone, address_line1)
+        customer:customers(id, name, email, phone, company_name, address_line1)
       `,
       )
       .eq('company_id', companyId)
@@ -90,6 +99,12 @@ export async function fetchInvoicesForExport(): Promise<InvoiceListItem[]> {
         tax_amount: Number(row.tax_amount ?? 0),
         discount_amount: Number(row.discount_amount ?? 0),
         total: Number(row.total ?? 0),
+        payment_mode: (row.payment_mode as PaymentMode | null) ?? null,
+        payment_mode_other:
+          (row.payment_mode_other as string | null) ?? null,
+        model: (row.model as string | null) ?? null,
+        place: (row.place as string | null) ?? null,
+        employee_name: (row.employee_name as string | null) ?? null,
         created_at: String(row.created_at),
         customer: customerRaw
           ? {
@@ -97,6 +112,8 @@ export async function fetchInvoicesForExport(): Promise<InvoiceListItem[]> {
               name: String(customerRaw.name ?? ''),
               email: (customerRaw.email as string | null) ?? null,
               phone: (customerRaw.phone as string | null) ?? null,
+              company_name:
+                (customerRaw.company_name as string | null) ?? null,
               address_line1:
                 (customerRaw.address_line1 as string | null) ?? null,
             }
