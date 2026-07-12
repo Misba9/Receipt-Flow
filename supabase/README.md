@@ -33,7 +33,7 @@ Cross-tenant platform admin reads/mutations go through SECURITY DEFINER RPCs onl
 
 ## Apply migrations
 
-Run **in order**:
+Run **in order** (or use the CLI):
 
 1. `20260712000001_init_schema.sql`
 2. `20260712000002_row_level_security.sql`
@@ -41,6 +41,12 @@ Run **in order**:
 4. `20260712000004_invoice_pdf_storage.sql`
 5. `20260712000005_multi_tenant_hardening.sql`
 6. `20260712000006_super_admin.sql`
+7. `20260712000007_ensure_workspace.sql`
+8. `20260712000008_company_sender_branding.sql`
+9. `20260712000009_onboarding.sql`
+10. `20260712000010_exclude_platform_workspaces.sql`
+11. `20260712000011_platform_company_flag.sql`
+12. `20260712000012_bill_extra_fields.sql`
 
 ```bash
 supabase db push
