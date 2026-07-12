@@ -542,7 +542,13 @@ Deno.serve(async (req) => {
       currency: row.currency,
     })
 
-    const idempotencyKey = `invoice-email:${invoiceId}:${row.invoice_number}`
+    // Include sender so retries after rotating from-address / API key are not
+    // stuck on a cached Resend error for 24h.
+    const idempotencyKey =
+      `invoice-email:${invoiceId}:${row.invoice_number}:${extractEmailAddress(resendFromEmail) ?? 'unknown'}`.slice(
+        0,
+        256,
+      )
 
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
