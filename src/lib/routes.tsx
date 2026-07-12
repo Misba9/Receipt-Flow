@@ -53,6 +53,11 @@ const SettingsPage = lazy(() =>
 const OnboardingPage = lazy(() =>
   import('@/pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })),
 )
+const AuthCallbackPage = lazy(() =>
+  import('@/pages/AuthCallbackPage').then((m) => ({
+    default: m.AuthCallbackPage,
+  })),
+)
 const AdminDashboardPage = lazy(() =>
   import('@/pages/AdminDashboardPage').then((m) => ({
     default: m.AdminDashboardPage,
@@ -101,6 +106,15 @@ export function AppRoutes() {
           }
         />
       </Route>
+
+      <Route
+        path={paths.authCallback}
+        element={
+          <LazyRoute>
+            <AuthCallbackPage />
+          </LazyRoute>
+        }
+      />
 
       <Route
         path={paths.onboarding}

@@ -5,7 +5,6 @@ import { ArrowRight } from 'lucide-react'
 import { OnboardingActions } from '@/components/onboarding/OnboardingActions'
 import { Alert, Button, Input, PasswordInput, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
-import { useToast } from '@/hooks/useToast'
 import { paths } from '@/lib/paths'
 import {
   saveOnboardingDraft,
@@ -31,7 +30,7 @@ type AccountNotice =
 type OnboardingAccountStepProps = {
   draft: OnboardingDraft
   onDraftChange: (next: OnboardingDraft) => void
-  onSuccess: (next: OnboardingDraft) => void
+  onSuccess: (next: OnboardingDraft, password: string) => void
 }
 
 export function OnboardingAccountStep({
@@ -39,18 +38,15 @@ export function OnboardingAccountStep({
   onDraftChange,
   onSuccess,
 }: OnboardingAccountStepProps) {
-  const { signUp, resendSignupEmail } = useAuth()
-  const { toast } = useToast()
+  const { signUp } = useAuth()
 
   const [busy, setBusy] = useState(false)
-  const [resending, setResending] = useState(false)
   const [notice, setNotice] = useState<AccountNotice>(null)
   const [cooldown, setCooldown] = useState(0)
 
   const {
     register,
     handleSubmit,
-    getValues,
     formState: { errors },
   } = useForm<AccountForm>({
     defaultValues: {
@@ -105,10 +101,10 @@ export function OnboardingAccountStep({
       if (result.errorKind === 'rate_limit') {
         setNotice({
           kind: 'rate_limit',
-          title: result.errorTitle || 'Too many verification emails',
+          title: result.errorTitle || 'Too many attempts',
           message:
             result.error ||
-            "You've requested too many verification emails. Please wait a few minutes before trying again.",
+            'Please wait a few minutes before trying again.',
         })
         startCooldown()
         return
@@ -133,49 +129,9 @@ export function OnboardingAccountStep({
       const created: OnboardingDraft = { ...nextDraft, accountCreated: true }
       onDraftChange(created)
       saveOnboardingDraft(created)
-      onSuccess(created)
+      onSuccess(created, values.password)
     } finally {
       setBusy(false)
-    }
-  }
-
-  const handleResendVerification = async () => {
-    if (resending || cooldown > 0) return
-    const email = (getValues('email') || draft.email).trim().toLowerCase()
-    if (!email) return
-
-    setResending(true)
-    setNotice((prev) =>
-      prev?.kind === 'email_exists'
-        ? prev
-        : { kind: 'email_exists', message: 'This email is already registered.' },
-    )
-
-    try {
-      const result = await resendSignupEmail(email)
-      if (result.errorKind === 'in_progress') return
-
-      if (result.errorKind === 'rate_limit') {
-        setNotice({
-          kind: 'rate_limit',
-          title: result.errorTitle || 'Too many verification emails',
-          message:
-            result.error ||
-            "You've requested too many verification emails. Please wait a few minutes before trying again.",
-        })
-        startCooldown()
-        return
-      }
-
-      if (result.error) {
-        setNotice({ kind: 'generic', message: result.error })
-        return
-      }
-
-      toast('Verification email sent. Check your inbox.', 'info')
-      startCooldown()
-    } finally {
-      setResending(false)
     }
   }
 
@@ -203,29 +159,14 @@ export function OnboardingAccountStep({
         <Alert variant="info">
           <p className="font-semibold">{notice.message}</p>
           <p className="mt-1 text-sm opacity-90">
-            Sign in with this email, or resend a verification link if you have
-            not confirmed your account yet.
+            Sign in with this email to open your workspace.
           </p>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <Link to={paths.login} className="w-full sm:w-auto">
+          <div className="mt-4">
+            <Link to={paths.login} className="inline-flex w-full sm:w-auto">
               <Button type="button" className="w-full" size="lg">
                 Sign In
               </Button>
             </Link>
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full sm:w-auto"
-              size="lg"
-              disabled={resending || cooldown > 0}
-              aria-busy={resending}
-              onClick={() => void handleResendVerification()}
-            >
-              {resending ? <Spinner className="h-4 w-4" /> : null}
-              {cooldown > 0
-                ? `Resend in ${cooldown}s`
-                : 'Resend Verification Email'}
-            </Button>
           </div>
         </Alert>
       ) : null}
@@ -285,12 +226,7 @@ export function OnboardingAccountStep({
 
       <OnboardingActions>
         <span className="hidden sm:block" />
-        <Button
-          type="submit"
-          size="lg"
-          disabled={disabled}
-          aria-busy={busy}
-        >
+        <Button type="submit" size="lg" disabled={disabled} aria-busy={busy}>
           {busy ? (
             <Spinner className="h-4 w-4 border-white/30 border-t-white" />
           ) : null}

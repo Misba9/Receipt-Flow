@@ -47,10 +47,17 @@ Run **in order** (or use the CLI):
 10. `20260712000010_exclude_platform_workspaces.sql`
 11. `20260712000011_platform_company_flag.sql`
 12. `20260712000012_bill_extra_fields.sql`
+13. `20260712000013_soft_email_verification.sql`
 
 ```bash
 supabase db push
 ```
+
+## Soft email verification
+
+Email confirmation must **not** block sign-in (Auth → Providers → Email → **Confirm email** OFF).
+
+Product verification is tracked on `profiles.email_verified_at` (migration `000013`). Users can verify later from the dashboard banner or Settings → Profile via a magic-link OTP to `/auth/callback?next=email-verified`.
 
 ## Production Auth URLs
 
@@ -58,10 +65,10 @@ Supabase Dashboard → Authentication → URL Configuration:
 
 | Setting | Example |
 | --- | --- |
-| Site URL | `https://your-domain.com` |
-| Redirect URLs | `https://your-domain.com/login`, `https://your-domain.com/reset-password` |
+| Site URL | Your primary production origin (e.g. `https://your-domain.com`) |
+| Redirect URLs | `https://your-domain.com/auth/callback`, `https://your-domain.com/auth/callback?next=reset-password`, `https://your-domain.com/auth/callback?next=email-verified`, plus matching localhost URLs for development |
 
-Also keep localhost URLs for development.
+Do **not** bake a localhost host into client auth redirects — use `window.location.origin`.
 
 ## Invoice email (Resend)
 

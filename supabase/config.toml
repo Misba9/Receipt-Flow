@@ -1,2 +1,36 @@
+# ReceiptFlow Supabase project config (remote via `supabase config push`)
+# Keep production Site URL + redirect allow-list; only toggle email confirmations.
+
+[auth]
+enabled = true
+site_url = "https://receipt-flow-azure.vercel.app"
+additional_redirect_urls = [
+  "https://receipt-flow-azure.vercel.app/**",
+  "http://localhost:5173/**",
+  "http://127.0.0.1:5173/**",
+]
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+# Do not require (or send) signup confirmation emails.
+enable_confirmations = false
+double_confirm_changes = true
+secure_password_change = false
+max_frequency = "1m0s"
+otp_length = 8
+otp_expiry = 3600
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.mfa.phone]
+enroll_enabled = false
+verify_enabled = false
+
 [functions.send-invoice-email]
 verify_jwt = true

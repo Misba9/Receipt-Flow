@@ -60,7 +60,7 @@ export function OnboardingProgress({ step }: OnboardingProgressProps) {
       </ol>
 
       {/* Tablet+ : labeled steps */}
-      <ol className="hidden gap-2 sm:grid sm:grid-cols-5">
+      <ol className="hidden gap-2 sm:grid sm:grid-cols-4">
         {ONBOARDING_STEPS.map((item) => {
           const active = item.id === step
           const done = item.id < step

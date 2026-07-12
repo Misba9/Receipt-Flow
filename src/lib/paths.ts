@@ -11,6 +11,7 @@ export const paths = {
   receipts: '/receipts',
   settings: '/settings',
   onboarding: '/onboarding',
+  authCallback: '/auth/callback',
   admin: '/admin',
   adminCompanies: '/admin/companies',
   adminUsers: '/admin/users',

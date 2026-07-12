@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
-import { EmailVerifyPanel } from '@/components/onboarding/EmailVerifyPanel'
 import { OnboardingAccountStep } from '@/components/onboarding/OnboardingAccountStep'
 import { OnboardingActions } from '@/components/onboarding/OnboardingActions'
 import { OnboardingInvoicePreview } from '@/components/onboarding/OnboardingInvoicePreview'
@@ -54,30 +53,24 @@ export function OnboardingWizard() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const {
-    user,
     isAuthenticated,
-    isEmailVerified,
     isLoading: authLoading,
-    resendSignupEmail,
-    refreshUser,
+    signIn,
   } = useAuth()
   const { data: access } = useSessionAccess()
   const { data: company, isLoading: companyLoading, refetch } =
     useCompanySettings()
   const uploadLogo = useUploadCompanyLogo()
 
-  const [step, setStep] = useState(() => loadOnboardingStep())
+  const [step, setStep] = useState(() => Math.min(loadOnboardingStep(), 4))
   const [draft, setDraft] = useState<OnboardingDraft>(() => loadOnboardingDraft())
   const [error, setError] = useState<string | null>(null)
   const [errorTitle, setErrorTitle] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [resendIn, setResendIn] = useState(0)
-  const finishStarted = useRef(false)
+  const passwordRef = useRef('')
 
-  // Signed-in users skip account creation; unverified users still fill company data.
   const minStep = isAuthenticated ? 2 : 1
-  const activeStep = Math.max(step, minStep)
-  const showVerifiedSuccess = isEmailVerified && activeStep === 5
+  const activeStep = Math.min(Math.max(step, minStep), 4)
 
   useEffect(() => {
     saveOnboardingDraft(draft)
@@ -86,74 +79,6 @@ export function OnboardingWizard() {
   useEffect(() => {
     saveOnboardingStep(activeStep)
   }, [activeStep])
-
-  useEffect(() => {
-    if (resendIn <= 0) return
-    const id = window.setInterval(() => {
-      setResendIn((value) => Math.max(0, value - 1))
-    }, 1000)
-    return () => window.clearInterval(id)
-  }, [resendIn])
-
-  // Detect magic-link return / confirmation in another tab.
-  useEffect(() => {
-    if (activeStep !== 5 || isEmailVerified) return
-
-    const check = () => {
-      void refreshUser()
-    }
-
-    check()
-    const id = window.setInterval(check, 2500)
-    window.addEventListener('focus', check)
-
-    return () => {
-      window.clearInterval(id)
-      window.removeEventListener('focus', check)
-    }
-  }, [activeStep, isEmailVerified, refreshUser])
-
-  // After verification, persist workspace and redirect.
-  useEffect(() => {
-    if (!showVerifiedSuccess || error) return
-
-    let cancelled = false
-
-    void (async () => {
-      if (finishStarted.current) return
-      finishStarted.current = true
-      try {
-        const latestDraft = loadOnboardingDraft()
-        await finishOnboarding(latestDraft)
-        if (cancelled) return
-        clearOnboardingSession()
-        applyBrandColor(latestDraft.primaryColor)
-        await refetch()
-        toast('Workspace ready. Welcome aboard!', 'success')
-        window.setTimeout(() => {
-          if (!cancelled) navigate(paths.dashboard, { replace: true })
-        }, 2000)
-      } catch (err) {
-        finishStarted.current = false
-        if (cancelled) return
-        console.error('[onboarding] finish failed', err)
-        setError(
-          'Email verified, but we could not finish setup. Try again.',
-        )
-      }
-    })()
-
-    return () => {
-      cancelled = true
-      finishStarted.current = false
-    }
-  }, [showVerifiedSuccess, error, navigate, refetch, toast])
-
-  const retryFinish = () => {
-    setError(null)
-    setErrorTitle(null)
-    finishStarted.current = false
-  }
 
   const patchDraft = (partial: Partial<OnboardingDraft>) => {
     setDraft((prev) => ({ ...prev, ...partial }))
@@ -176,19 +101,21 @@ export function OnboardingWizard() {
     return next
   }
 
-  const goNext = () => setStep((value) => Math.min(5, value + 1))
+  const goNext = () => setStep((value) => Math.min(4, value + 1))
   const goBack = () => {
     setError(null)
     setErrorTitle(null)
     setStep((value) => Math.max(minStep, value - 1))
   }
 
-  const handleAccountSuccess = (next: OnboardingDraft) => {
+  const handleAccountSuccess = (next: OnboardingDraft, password: string) => {
+    passwordRef.current = password
     setDraft(next)
     setError(null)
     setErrorTitle(null)
     setStep(2)
   }
+
   const handleCompanyContinue = async () => {
     setError(null)
     if (!draft.companyName.trim()) {
@@ -244,8 +171,24 @@ export function OnboardingWizard() {
     }
   }
 
+  const ensureSignedIn = async () => {
+    if (isAuthenticated) return
+    const email = draft.email.trim()
+    const password = passwordRef.current
+    if (!email || !password) {
+      throw new Error(
+        'Your session expired. Go back to Create account and continue.',
+      )
+    }
+    const result = await signIn(email, password)
+    if (result.error) {
+      throw new Error(result.error)
+    }
+  }
+
   const handleBrandingContinue = async () => {
     setError(null)
+    setErrorTitle(null)
     if (!draft.currency.trim() || !draft.timezone.trim() || !draft.invoicePrefix.trim()) {
       setError('Currency, timezone, and invoice prefix are required.')
       return
@@ -258,74 +201,25 @@ export function OnboardingWizard() {
     setBusy(true)
     try {
       await persistProgress(draft)
-      setStep(5)
-      saveOnboardingStep(5)
-
-      if (isEmailVerified) {
-        return
-      }
-
-      if (draft.email) {
-        const result = await resendSignupEmail(draft.email)
-        if (result.errorKind === 'rate_limit') {
-          setErrorTitle(result.errorTitle || 'Too many verification emails')
-          setError(
-            result.error ||
-              "You've requested too many verification emails. Please wait a few minutes before trying again.",
-          )
-          setResendIn(30)
-          return
-        }
-        if (result.error && result.errorKind !== 'in_progress') {
-          console.warn('[onboarding] resend on branding continue', result.error)
-        }
-        setResendIn(30)
-        if (!result.error) {
-          toast('Verification link sent to your email.', 'info')
-        }
-      }
+      await ensureSignedIn()
+      const latestDraft = loadOnboardingDraft()
+      await finishOnboarding(latestDraft)
+      clearOnboardingSession()
+      passwordRef.current = ''
+      applyBrandColor(latestDraft.primaryColor)
+      await refetch()
+      toast('Workspace ready. Welcome aboard!', 'success')
+      navigate(paths.dashboard, { replace: true })
+    } catch (err) {
+      console.error('[onboarding] finish failed', err)
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to finish setup. Please try again.',
+      )
     } finally {
       setBusy(false)
     }
-  }
-
-  const handleResendEmail = async () => {
-    if (resendIn > 0 || !draft.email || busy) return
-    setError(null)
-    setErrorTitle(null)
-    setBusy(true)
-    try {
-      const result = await resendSignupEmail(draft.email)
-      if (result.errorKind === 'in_progress') return
-
-      if (result.errorKind === 'rate_limit') {
-        setErrorTitle(result.errorTitle || 'Too many verification emails')
-        setError(
-          result.error ||
-            "You've requested too many verification emails. Please wait a few minutes before trying again.",
-        )
-        setResendIn(30)
-        return
-      }
-
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-
-      setResendIn(30)
-      toast('A new verification link was sent.', 'info')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleChangeEmail = () => {
-    setError(null)
-    setErrorTitle(null)
-    finishStarted.current = false
-    patchDraft({ accountCreated: false })
-    setStep(1)
   }
 
   const handleLogoSelect = async (file: File) => {
@@ -355,12 +249,7 @@ export function OnboardingWizard() {
     return <Navigate to={paths.admin} replace />
   }
 
-  if (
-    isAuthenticated &&
-    isEmailVerified &&
-    company?.onboardingCompletedAt &&
-    !showVerifiedSuccess
-  ) {
+  if (isAuthenticated && company?.onboardingCompletedAt) {
     return <Navigate to={paths.dashboard} replace />
   }
 
@@ -405,7 +294,7 @@ export function OnboardingWizard() {
             key={activeStep}
             className="w-full overflow-hidden border-surface-200/80 p-4 shadow-sm sm:p-6 md:p-8 dark:border-surface-800 motion-safe:animate-[fadeSlideIn_0.28s_ease-out]"
           >
-            {error && activeStep !== 1 && activeStep !== 5 ? (
+            {error && activeStep !== 1 ? (
               <Alert className="mb-5">
                 {errorTitle ? (
                   <p className="font-semibold">{errorTitle}</p>
@@ -638,26 +527,11 @@ export function OnboardingWizard() {
                     {busy ? (
                       <Spinner className="h-4 w-4 border-white/30 border-t-white" />
                     ) : null}
-                    Continue
+                    Finish setup
                     <ArrowRight className="h-4 w-4" aria-hidden />
                   </Button>
                 </OnboardingActions>
               </div>
-            ) : null}
-
-            {activeStep === 5 ? (
-              <EmailVerifyPanel
-                email={draft.email || user?.email || ''}
-                verified={showVerifiedSuccess}
-                busy={busy}
-                resendIn={resendIn}
-                error={error}
-                errorTitle={errorTitle}
-                onResend={() => void handleResendEmail()}
-                onChangeEmail={handleChangeEmail}
-                onBack={showVerifiedSuccess ? undefined : goBack}
-                onRetryFinish={retryFinish}
-              />
             ) : null}
           </Card>
 

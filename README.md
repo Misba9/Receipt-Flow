@@ -69,14 +69,17 @@ supabase functions deploy send-invoice-email
 ## Supabase configuration
 
 1. Apply **all** migrations in `supabase/migrations/` (`supabase db push` or SQL Editor in order).
-2. Auth → URL configuration — add redirect URLs:
-   - `http://localhost:5173/login`
-   - `http://localhost:5173/reset-password`
-   - `https://your-domain.com/login`
-   - `https://your-domain.com/reset-password`
-3. Site URL: `https://your-domain.com`
-4. Confirm Storage buckets `company-logos` and `invoice-pdfs` exist (created by migrations).
-5. Optional super admin:
+2. Auth → Providers → Email → **Confirm email: OFF** (so signup returns a session; soft verify is optional via dashboard/Settings).
+3. Auth → URL configuration — add redirect URLs:
+   - `http://localhost:5173/auth/callback`
+   - `http://localhost:5173/auth/callback?next=reset-password`
+   - `http://localhost:5173/auth/callback?next=email-verified`
+   - `https://your-domain.com/auth/callback`
+   - `https://your-domain.com/auth/callback?next=reset-password`
+   - `https://your-domain.com/auth/callback?next=email-verified`
+4. Site URL: `https://your-domain.com` (production origin; auth emails use `window.location.origin` at runtime)
+5. Confirm Storage buckets `company-logos` and `invoice-pdfs` exist (created by migrations).
+6. Optional super admin:
 
 ```sql
 update public.profiles

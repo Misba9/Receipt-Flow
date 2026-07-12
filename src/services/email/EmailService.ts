@@ -15,10 +15,11 @@ import type { CompanySettings } from '@/services/settings/types'
 const DEMO_SEND_MESSAGE = 'Demo Mode: Email not actually sent.'
 
 function appUrl() {
-  return (import.meta.env.VITE_APP_URL || window.location.origin).replace(
-    /\/$/,
-    '',
-  )
+  // Prefer the live origin so links match the host the user is on.
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/$/, '')
+  }
+  return (import.meta.env.VITE_APP_URL || '').replace(/\/$/, '')
 }
 
 function requireCustomerEmail(invoice: InvoiceDetail): string {

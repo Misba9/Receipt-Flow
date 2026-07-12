@@ -17,7 +17,6 @@ export const ONBOARDING_STEPS = [
   { id: 2, title: 'Company', description: 'Business profile' },
   { id: 3, title: 'Contact', description: 'How customers reach you' },
   { id: 4, title: 'Branding', description: 'Invoices & look' },
-  { id: 5, title: 'Verify email', description: 'Confirm your inbox' },
 ] as const
 
 export type OnboardingDraft = {
@@ -115,7 +114,7 @@ export function saveOnboardingDraft(draft: OnboardingDraft) {
 export function loadOnboardingStep(): number {
   const raw = readStorage(STEP_KEY)
   const step = Number(raw)
-  return Number.isFinite(step) && step >= 1 && step <= 5 ? step : 1
+  return Number.isFinite(step) && step >= 1 && step <= 4 ? step : 1
 }
 
 export function saveOnboardingStep(step: number) {

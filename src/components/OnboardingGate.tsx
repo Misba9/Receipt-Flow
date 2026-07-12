@@ -6,15 +6,12 @@ import { useCompanySettings } from '@/services/settings/hooks'
 import { paths } from '@/lib/paths'
 
 /**
- * Blocks tenant app routes until email is verified and onboarding is finished.
- * Super admins skip this gate (platform console is separate from client onboarding).
+ * Blocks tenant app routes until onboarding is finished.
+ * Email verification is optional and never blocks access.
+ * Super admins skip this gate.
  */
 export function OnboardingGate() {
-  const {
-    isAuthenticated,
-    isEmailVerified,
-    isLoading: authLoading,
-  } = useAuth()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const { data: access, isLoading: accessLoading } = useSessionAccess()
   const { data, isLoading, isError } = useCompanySettings()
   const location = useLocation()
@@ -30,13 +27,8 @@ export function OnboardingGate() {
   const onOnboarding = location.pathname === paths.onboarding
   const onSettings = location.pathname === paths.settings
 
-  if (isAuthenticated && !isEmailVerified && !onOnboarding) {
-    return <Navigate to={paths.onboarding} replace />
-  }
-
   if (
     isAuthenticated &&
-    isEmailVerified &&
     !isError &&
     data &&
     !data.onboardingCompletedAt &&

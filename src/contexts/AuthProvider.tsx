@@ -7,7 +7,10 @@ import {
   type SignUpResult,
 } from '@/contexts/auth-context'
 import { classifyAuthError, logAuthError } from '@/lib/auth-errors'
-import { env } from '@/lib/env'
+import {
+  getAuthCallbackUrl,
+  getPasswordResetRedirectUrl,
+} from '@/lib/auth-redirect'
 import { supabase } from '@/lib/supabase'
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -83,12 +86,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           metadata.company_name = options.companyName.trim()
         }
 
+        // No emailRedirectTo — signup must not trigger a confirmation email.
+        // Optional verify is opt-in from Settings / dashboard banner only.
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
             data: Object.keys(metadata).length > 0 ? metadata : undefined,
-            emailRedirectTo: `${env.appUrl}/onboarding`,
           },
         })
 
@@ -103,8 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Supabase may return a user with empty identities when the email
-        // already exists (to avoid account enumeration). Treat that as exists.
+        // Empty identities = email already registered (Supabase anti-enumeration).
         const identities = data.user?.identities
         if (data.user && Array.isArray(identities) && identities.length === 0) {
           logAuthError('signUp', 'Duplicate signup (empty identities)')
@@ -119,6 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        // Prefer an immediate session so onboarding can finish without email confirm.
+        // If Confirm email is still enabled in the project, session may be null —
+        // the wizard will sign in with the password after branding.
         const needsEmailConfirmation = !data.session
         return {
           error: null,
@@ -144,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           type: 'signup',
           email: email.trim(),
           options: {
-            emailRedirectTo: `${env.appUrl}/onboarding`,
+            emailRedirectTo: getAuthCallbackUrl(),
           },
         })
 
@@ -183,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${env.appUrl}/reset-password`,
+      redirectTo: getPasswordResetRedirectUrl(),
     })
     return {
       error: error ? getErrorMessage(error, 'Unable to send reset email.') : null,
@@ -203,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       isLoading,
       isAuthenticated: Boolean(session?.user),
+      // Product soft-verify uses profiles.email_verified_at; this mirrors Auth.
       isEmailVerified: Boolean(user?.email_confirmed_at),
       signIn,
       signUp,
