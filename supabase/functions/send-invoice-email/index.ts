@@ -10,12 +10,11 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-}
+import {
+  corsHeaders,
+  handleCorsPreflightRequest,
+  jsonResponse,
+} from '../_shared/cors.ts'
 
 type InvoiceRow = {
   id: string
@@ -43,13 +42,6 @@ type CompanyRow = {
   phone: string | null
   tax_id: string | null
   primary_color?: string
-}
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
 }
 
 function formatMoney(amount: number, currency: string) {
@@ -227,8 +219,9 @@ function resendErrorMessage(body: unknown, fallback: string) {
 }
 
 Deno.serve(async (req) => {
+  // CORS preflight — must run before any auth or body parsing
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return handleCorsPreflightRequest()
   }
 
   if (req.method !== 'POST') {
@@ -474,3 +467,6 @@ Deno.serve(async (req) => {
     )
   }
 })
+
+// Re-export for visibility / reuse within this function module
+export { corsHeaders }
