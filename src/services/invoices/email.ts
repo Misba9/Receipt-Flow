@@ -48,6 +48,10 @@ export async function invokeSendInvoiceEmail(
     throw new Error(await messageFromFunctionsError(error))
   }
 
+  if (data?.success === false && data?.message) {
+    throw new Error(String(data.message))
+  }
+
   if (data?.error) {
     throw new Error(String(data.error))
   }
