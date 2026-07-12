@@ -1,6 +1,7 @@
 import { InvoiceStatusBadge } from '@/components/dashboard/InvoiceStatusBadge'
 import { Card } from '@/components/ui/Card'
 import type { InvoiceDetail } from '@/services/invoices/types'
+import { PAYMENT_MODE_LABELS } from '@/services/invoices/types'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { useCompanySettings } from '@/services/settings/hooks'
 
@@ -82,7 +83,7 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
         <div className="sm:text-right">
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-6 sm:justify-end">
-              <dt className="text-surface-500">Issue date</dt>
+              <dt className="text-surface-500">Billing date</dt>
               <dd className="font-medium">
                 {formatDate(
                   invoice.issue_date,
@@ -103,18 +104,47 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
                 </dd>
               </div>
             ) : null}
+            {invoice.model ? (
+              <div className="flex justify-between gap-6 sm:justify-end">
+                <dt className="text-surface-500">Model</dt>
+                <dd className="font-medium">{invoice.model}</dd>
+              </div>
+            ) : null}
+            {invoice.place ? (
+              <div className="flex justify-between gap-6 sm:justify-end">
+                <dt className="text-surface-500">Place</dt>
+                <dd className="font-medium">{invoice.place}</dd>
+              </div>
+            ) : null}
+            {invoice.employee_name ? (
+              <div className="flex justify-between gap-6 sm:justify-end">
+                <dt className="text-surface-500">Employee</dt>
+                <dd className="font-medium">{invoice.employee_name}</dd>
+              </div>
+            ) : null}
+            {invoice.payment_mode ? (
+              <div className="flex justify-between gap-6 sm:justify-end">
+                <dt className="text-surface-500">Payment</dt>
+                <dd className="font-medium">
+                  {invoice.payment_mode === 'other'
+                    ? invoice.payment_mode_other || 'Other'
+                    : PAYMENT_MODE_LABELS[invoice.payment_mode]}
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[36rem] text-left text-sm">
+        <table className="w-full min-w-[40rem] text-left text-sm">
           <thead>
             <tr className="border-b border-surface-100 bg-surface-50 text-xs uppercase tracking-wide text-surface-400 dark:border-surface-800 dark:bg-surface-950">
               <th className="px-6 py-3 font-medium sm:px-8">Product</th>
+              <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 text-right font-medium">Qty</th>
-              <th className="px-4 py-3 text-right font-medium">Price</th>
-              <th className="px-6 py-3 text-right font-medium sm:px-8">Amount</th>
+              <th className="px-4 py-3 text-right font-medium">Amount</th>
+              <th className="px-6 py-3 text-right font-medium sm:px-8">Total</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-100 dark:divide-surface-800">
@@ -122,6 +152,9 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
               <tr key={item.id}>
                 <td className="px-6 py-3.5 font-medium text-surface-900 sm:px-8 dark:text-surface-50">
                   {item.description}
+                </td>
+                <td className="px-4 py-3.5 text-surface-600 dark:text-surface-300">
+                  {item.product_type || '—'}
                 </td>
                 <td className="px-4 py-3.5 text-right text-surface-600 dark:text-surface-300">
                   {item.quantity}
@@ -143,7 +176,7 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
           {invoice.notes ? (
             <>
               <p className="text-xs font-semibold uppercase tracking-wide text-surface-400">
-                Notes
+                Comments
               </p>
               <p className="mt-2 whitespace-pre-wrap text-surface-700 dark:text-surface-300">
                 {invoice.notes}

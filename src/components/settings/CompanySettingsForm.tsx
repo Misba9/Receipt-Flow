@@ -37,7 +37,6 @@ type CompanySettingsFormProps = {
 
 const HEX_PATTERN = /^#[0-9A-Fa-f]{6}$/
 const EMAIL_PATTERN = /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const REQUIRED_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const BUSINESS_TYPE_OPTIONS = BUSINESS_TYPES.map((value) => ({
   value,
   label: value,
@@ -75,9 +74,6 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
       postalCode: settings.postalCode,
       country: settings.country,
       logoUrl: settings.logoUrl,
-      senderName: settings.senderName,
-      senderEmail: settings.senderEmail,
-      replyTo: settings.replyTo,
       primaryColor: settings.primaryColor,
       invoiceFooter: settings.invoiceFooter,
       currency: settings.currency,
@@ -101,12 +97,9 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
         currency: values.currency.trim().toUpperCase(),
         timezone: values.timezone.trim(),
         invoicePrefix: values.invoicePrefix.trim(),
-        senderName: values.senderName.trim(),
-        senderEmail: values.senderEmail.trim().toLowerCase(),
-        replyTo: values.replyTo.trim().toLowerCase(),
       })
       setSuccessMessage(
-        'Company settings saved. Branding, invoices, and emails will use these details.',
+        'Company settings saved. Branding and invoices will use these details.',
       )
     } catch (error) {
       setFormError(
@@ -272,60 +265,6 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
               {...register('postalCode')}
             />
             <Input label="Country" disabled={disabled} {...register('country')} />
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div>
-            <CardTitle>Email sender</CardTitle>
-            <CardDescription>
-              Used when sending invoices. The Resend API key stays on the server
-              — only these public sender fields are stored per company.
-            </CardDescription>
-          </div>
-        </CardHeader>
-
-        <div className="space-y-4">
-          <Input
-            label="Sender name"
-            placeholder="Acme Billing"
-            disabled={disabled}
-            error={errors.senderName?.message}
-            {...register('senderName', {
-              required: 'Sender name is required',
-              minLength: { value: 2, message: 'Enter at least 2 characters' },
-            })}
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Sender email"
-              type="email"
-              placeholder="noreply@yourdomain.com"
-              disabled={disabled}
-              error={errors.senderEmail?.message}
-              {...register('senderEmail', {
-                required: 'Sender email is required',
-                pattern: {
-                  value: REQUIRED_EMAIL,
-                  message: 'Enter a valid sender email',
-                },
-              })}
-            />
-            <Input
-              label="Reply-to email"
-              type="email"
-              placeholder="support@yourdomain.com"
-              disabled={disabled}
-              error={errors.replyTo?.message}
-              {...register('replyTo', {
-                pattern: {
-                  value: EMAIL_PATTERN,
-                  message: 'Enter a valid reply-to email',
-                },
-              })}
-            />
           </div>
         </div>
       </Card>

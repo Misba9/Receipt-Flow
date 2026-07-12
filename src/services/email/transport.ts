@@ -8,6 +8,10 @@ export type EmailTransportKind = 'platform_resend' | 'custom_domain' | 'company_
 
 export type InvoiceEmailDispatchRequest = {
   invoiceId: string
+  /** automatic = content fingerprint; manual = fresh UUID per click */
+  sendMode?: 'automatic' | 'manual'
+  /** Manual sends should pass a new UUID every click */
+  idempotencyKey?: string
 }
 
 export type InvoiceEmailDispatchResult = {

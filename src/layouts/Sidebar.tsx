@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import {
   Building2,
   ChartColumn,
@@ -12,7 +12,7 @@ import {
 import { useSessionAccess } from '@/services/admin'
 import { useCompanySettings } from '@/services/settings/hooks'
 import { useAuth } from '@/hooks/useAuth'
-import { cn } from '@/utils'
+import { APP_NAME, cn } from '@/utils'
 import { paths } from '@/lib/paths'
 
 const mainNav = [
@@ -83,8 +83,12 @@ function NavItem({
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuth()
+  const location = useLocation()
   const { data: access } = useSessionAccess()
   const { data: company } = useCompanySettings()
+  const isAdminConsole =
+    Boolean(access?.isSuperAdmin) && location.pathname.startsWith('/admin')
+
   const displayName =
     typeof user?.user_metadata?.full_name === 'string' &&
     user.user_metadata.full_name.trim()
@@ -93,6 +97,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
   const companyName = company?.name?.trim() || 'Workspace'
   const invoicePrefix = company?.invoicePrefix?.trim()
+  const brandTitle = isAdminConsole ? APP_NAME : companyName
+  const brandSubtitle = isAdminConsole
+    ? 'Super Admin'
+    : invoicePrefix
+      ? `Invoices · ${invoicePrefix}`
+      : 'Workspace'
 
   return (
     <>
@@ -115,7 +125,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       >
         <div className="flex h-16 items-center justify-between gap-2 border-b border-surface-200 px-5 dark:border-surface-800">
           <div className="flex min-w-0 items-center gap-2.5">
-            {company?.logoUrl ? (
+            {!isAdminConsole && company?.logoUrl ? (
               <img
                 src={company.logoUrl}
                 alt={companyName}
@@ -123,15 +133,19 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               />
             ) : (
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm shadow-brand-600/30">
-                <FileText className="h-4 w-4" />
+                {isAdminConsole ? (
+                  <Shield className="h-4 w-4" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
               </div>
             )}
             <div className="min-w-0 leading-tight">
               <span className="block truncate text-base font-semibold tracking-tight text-surface-900 dark:text-surface-50">
-                {companyName}
+                {brandTitle}
               </span>
               <span className="text-[11px] font-medium uppercase tracking-wider text-surface-400">
-                {invoicePrefix ? `Invoices · ${invoicePrefix}` : 'Workspace'}
+                {brandSubtitle}
               </span>
             </div>
           </div>
@@ -146,24 +160,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-3">
-          <nav className="flex flex-col gap-1">
-            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-surface-400">
-              Menu
-            </p>
-            {mainNav.map((item) => (
-              <NavItem
-                key={item.href}
-                {...item}
-                end={item.href === paths.dashboard}
-                onNavigate={onClose}
-              />
-            ))}
-          </nav>
-
-          {access?.isSuperAdmin ? (
+          {isAdminConsole ? (
             <nav className="flex flex-col gap-1">
               <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-surface-400">
-                Super Admin
+                Platform
               </p>
               {adminNav.map((item) => (
                 <NavItem
@@ -174,16 +174,48 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 />
               ))}
             </nav>
-          ) : null}
+          ) : (
+            <>
+              <nav className="flex flex-col gap-1">
+                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-surface-400">
+                  Menu
+                </p>
+                {mainNav.map((item) => (
+                  <NavItem
+                    key={item.href}
+                    {...item}
+                    end={item.href === paths.dashboard}
+                    onNavigate={onClose}
+                  />
+                ))}
+              </nav>
 
-          <nav className="flex flex-col gap-1">
-            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-surface-400">
-              Account
-            </p>
-            {secondaryNav.map((item) => (
-              <NavItem key={item.href} {...item} onNavigate={onClose} />
-            ))}
-          </nav>
+              {access?.isSuperAdmin ? (
+                <nav className="flex flex-col gap-1">
+                  <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-surface-400">
+                    Super Admin
+                  </p>
+                  {adminNav.map((item) => (
+                    <NavItem
+                      key={item.href}
+                      {...item}
+                      end={item.href === paths.admin}
+                      onNavigate={onClose}
+                    />
+                  ))}
+                </nav>
+              ) : null}
+
+              <nav className="flex flex-col gap-1">
+                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-surface-400">
+                  Account
+                </p>
+                {secondaryNav.map((item) => (
+                  <NavItem key={item.href} {...item} onNavigate={onClose} />
+                ))}
+              </nav>
+            </>
+          )}
         </div>
 
         <div className="border-t border-surface-200 p-4 dark:border-surface-800">

@@ -47,6 +47,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     () => getPageTitle(location.pathname),
     [location.pathname],
   )
+  const isAdminConsole = location.pathname.startsWith('/admin')
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours()
@@ -90,14 +91,20 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
 
-        <div className="hidden min-w-0 flex-1 md:block">
-          <GlobalSearch className="mx-auto w-full max-w-xl" />
-        </div>
+        {!isAdminConsole ? (
+          <div className="hidden min-w-0 flex-1 md:block">
+            <GlobalSearch className="mx-auto w-full max-w-xl" />
+          </div>
+        ) : (
+          <div className="hidden min-w-0 flex-1 md:block" />
+        )}
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <div className="md:hidden">
-            <GlobalSearch mobile />
-          </div>
+          {!isAdminConsole ? (
+            <div className="md:hidden">
+              <GlobalSearch mobile />
+            </div>
+          ) : null}
 
           <Button
             variant="ghost"

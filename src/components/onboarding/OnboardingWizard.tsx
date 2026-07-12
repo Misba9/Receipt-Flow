@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { applyBrandColor } from '@/lib/branding'
 import { paths } from '@/lib/paths'
+import { useSessionAccess } from '@/services/admin'
 import {
   BUSINESS_TYPES,
   clearOnboardingSession,
@@ -60,6 +61,7 @@ export function OnboardingWizard() {
     resendSignupEmail,
     refreshUser,
   } = useAuth()
+  const { data: access } = useSessionAccess()
   const { data: company, isLoading: companyLoading, refetch } =
     useCompanySettings()
   const uploadLogo = useUploadCompanyLogo()
@@ -347,6 +349,10 @@ export function OnboardingWizard() {
         <Spinner className="h-8 w-8" />
       </div>
     )
+  }
+
+  if (access?.isSuperAdmin) {
+    return <Navigate to={paths.admin} replace />
   }
 
   if (

@@ -19,7 +19,7 @@ export function AdminDashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Super Admin"
-        description="Platform overview across all tenant companies."
+        description="Platform overview across all tenant companies (platform admin workspace excluded)."
         actions={
           <>
             <Link to={paths.adminCompanies}>

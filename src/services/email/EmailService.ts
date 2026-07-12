@@ -9,6 +9,7 @@ import type {
   InvoiceEmailPreview,
 } from '@/services/email/types'
 import type { InvoiceDetail } from '@/services/invoices/types'
+import type { InvokeSendInvoiceEmailOptions } from '@/services/invoices/email'
 import type { CompanySettings } from '@/services/settings/types'
 
 const DEMO_SEND_MESSAGE = 'Demo Mode: Email not actually sent.'
@@ -36,7 +37,10 @@ export const EmailService = {
   getMode: getEmailMode,
   isDevelopmentMode: isEmailDevelopmentMode,
 
-  async sendInvoiceEmail(invoiceId: string): Promise<EmailSendSuccess> {
+  async sendInvoiceEmail(
+    invoiceId: string,
+    options: InvokeSendInvoiceEmailOptions = {},
+  ): Promise<EmailSendSuccess> {
     const mode = getEmailMode()
 
     if (mode === 'development') {
@@ -48,7 +52,11 @@ export const EmailService = {
     }
 
     const transport = getInvoiceEmailTransport()
-    const result = await transport.sendInvoiceEmail({ invoiceId })
+    const result = await transport.sendInvoiceEmail({
+      invoiceId,
+      sendMode: options.sendMode,
+      idempotencyKey: options.idempotencyKey,
+    })
 
     return {
       success: true,
@@ -95,8 +103,8 @@ export const EmailService = {
       recipient,
       html,
       attachmentName: `${invoice.invoice_number}.pdf`,
-      from: `${company.senderName} <${company.senderEmail}>`,
-      replyTo: company.replyTo || company.email || undefined,
+      from: `${import.meta.env.VITE_APP_NAME || 'ReceiptFlow'} (platform sender)`,
+      replyTo: company.email || undefined,
     }
   },
 } as const

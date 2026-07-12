@@ -15,10 +15,37 @@ export const INVOICE_STATUSES: InvoiceStatus[] = [
   'void',
 ]
 
+export type PaymentMode =
+  | 'cash'
+  | 'card'
+  | 'phone_pay'
+  | 'google_pay'
+  | 'paytm'
+  | 'other'
+
+export const PAYMENT_MODES: PaymentMode[] = [
+  'cash',
+  'card',
+  'phone_pay',
+  'google_pay',
+  'paytm',
+  'other',
+]
+
+export const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
+  cash: 'Cash',
+  card: 'Card',
+  phone_pay: 'Phone Pay',
+  google_pay: 'Google Pay',
+  paytm: 'Paytm',
+  other: 'Other',
+}
+
 export type InvoiceItem = {
   id: string
   invoice_id: string
   description: string
+  product_type: string | null
   quantity: number
   unit_price: number
   amount: number
@@ -30,6 +57,7 @@ export type InvoiceCustomer = {
   name: string
   email: string | null
   phone: string | null
+  company_name: string | null
   address_line1: string | null
 }
 
@@ -45,6 +73,11 @@ export type InvoiceListItem = {
   tax_amount: number
   discount_amount: number
   total: number
+  payment_mode: PaymentMode | null
+  payment_mode_other: string | null
+  model: string | null
+  place: string | null
+  employee_name: string | null
   customer: InvoiceCustomer | null
   created_at: string
 }
@@ -62,6 +95,7 @@ export type InvoiceDetail = InvoiceListItem & {
 
 export type InvoiceItemInput = {
   description: string
+  product_type: string
   quantity: number
   unit_price: number
 }
@@ -74,6 +108,11 @@ export type InvoiceInput = {
   discount_amount: number
   tax_rate: number
   notes: string
+  payment_mode: PaymentMode | ''
+  payment_mode_other: string
+  model: string
+  place: string
+  employee_name: string
   items: InvoiceItemInput[]
 }
 
@@ -83,6 +122,7 @@ export type CreateBillInput = {
     name: string
     phone: string
     email: string
+    company_name: string
     address: string
     notes: string
   }

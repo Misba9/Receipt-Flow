@@ -7,6 +7,9 @@ import type {
   CustomersListResult,
 } from '@/services/customers/types'
 
+const CUSTOMER_COLUMNS =
+  'id, company_id, name, email, phone, company_name, address_line1, notes, is_active, created_at, updated_at'
+
 function emptyToNull(value: string) {
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
@@ -24,10 +27,7 @@ export async function fetchCustomers({
 
   let query = supabase
     .from('customers')
-    .select(
-      'id, company_id, name, email, phone, address_line1, notes, is_active, created_at, updated_at',
-      { count: 'exact' },
-    )
+    .select(CUSTOMER_COLUMNS, { count: 'exact' })
     .eq('company_id', companyId)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
@@ -37,7 +37,7 @@ export async function fetchCustomers({
     const escaped = term.replace(/[%_,]/g, '\\$&')
     const pattern = `%${escaped}%`
     query = query.or(
-      `name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},address_line1.ilike.${pattern},notes.ilike.${pattern}`,
+      `name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},company_name.ilike.${pattern},address_line1.ilike.${pattern},notes.ilike.${pattern}`,
     )
   }
 
@@ -65,13 +65,12 @@ export async function createCustomer(input: CustomerInput): Promise<Customer> {
       name: input.name.trim(),
       phone: emptyToNull(input.phone),
       email: emptyToNull(input.email),
+      company_name: emptyToNull(input.company_name),
       address_line1: emptyToNull(input.address),
       notes: emptyToNull(input.notes),
       is_active: true,
     })
-    .select(
-      'id, company_id, name, email, phone, address_line1, notes, is_active, created_at, updated_at',
-    )
+    .select(CUSTOMER_COLUMNS)
     .single()
 
   if (error) throw error
@@ -90,14 +89,13 @@ export async function updateCustomer(
       name: input.name.trim(),
       phone: emptyToNull(input.phone),
       email: emptyToNull(input.email),
+      company_name: emptyToNull(input.company_name),
       address_line1: emptyToNull(input.address),
       notes: emptyToNull(input.notes),
     })
     .eq('id', id)
     .eq('company_id', companyId)
-    .select(
-      'id, company_id, name, email, phone, address_line1, notes, is_active, created_at, updated_at',
-    )
+    .select(CUSTOMER_COLUMNS)
     .single()
 
   if (error) throw error

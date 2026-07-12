@@ -7,7 +7,10 @@ import {
   calculateInvoiceTotals,
   lineAmount,
 } from '@/services/invoices/calculations'
-import { deliverNewInvoice } from '@/services/invoices/deliver'
+import {
+  deliverNewInvoice,
+  type InvoiceDeliveryResult,
+} from '@/services/invoices/deliver'
 import {
   useCreateBill,
   useInvoiceCustomerOptions,
@@ -18,13 +21,18 @@ import type {
   InvoiceDetail,
   InvoiceInput,
   InvoiceStatus,
+  PaymentMode,
 } from '@/services/invoices/types'
-import { INVOICE_STATUSES } from '@/services/invoices/types'
+import {
+  INVOICE_STATUSES,
+  PAYMENT_MODE_LABELS,
+  PAYMENT_MODES,
+} from '@/services/invoices/types'
 import { useCompanySettings } from '@/services/settings/hooks'
 import { formatCurrency } from '@/lib/format'
 import { paths } from '@/lib/paths'
 
-const EMAIL_PATTERN = /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type InvoiceFormValues = {
   customer_name: string
@@ -39,8 +47,12 @@ type InvoiceFormValues = {
   discount_amount: number
   tax_rate: number
   notes: string
+  payment_mode: PaymentMode | ''
+  payment_mode_other: string
+  employee_name: string
   items: Array<{
     description: string
+    product_type: string
     quantity: number
     unit_price: number
   }>
@@ -55,6 +67,14 @@ const statusOptions = INVOICE_STATUSES.map((status) => ({
   value: status,
   label: status.charAt(0).toUpperCase() + status.slice(1),
 }))
+
+const paymentModeOptions = [
+  { value: '', label: 'Select payment mode' },
+  ...PAYMENT_MODES.map((mode) => ({
+    value: mode,
+    label: PAYMENT_MODE_LABELS[mode],
+  })),
+]
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
@@ -78,14 +98,18 @@ function buildDefaultValues(
       discount_amount: invoice.discount_amount,
       tax_rate: invoice.tax_rate,
       notes: invoice.notes ?? '',
+      payment_mode: invoice.payment_mode ?? '',
+      payment_mode_other: invoice.payment_mode_other ?? '',
+      employee_name: invoice.employee_name ?? '',
       items:
         invoice.items.length > 0
           ? invoice.items.map((item) => ({
               description: item.description,
+              product_type: item.product_type ?? '',
               quantity: item.quantity,
               unit_price: item.unit_price,
             }))
-          : [{ description: '', quantity: 1, unit_price: 0 }],
+          : [{ description: '', product_type: '', quantity: 1, unit_price: 0 }],
     }
   }
 
@@ -102,7 +126,10 @@ function buildDefaultValues(
     discount_amount: 0,
     tax_rate: defaults?.tax_rate ?? 0,
     notes: '',
-    items: [{ description: '', quantity: 1, unit_price: 0 }],
+    payment_mode: '',
+    payment_mode_other: '',
+    employee_name: '',
+    items: [{ description: '', product_type: '', quantity: 1, unit_price: 0 }],
   }
 }
 
@@ -135,12 +162,14 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
   const watchedItems = useWatch({ control, name: 'items' })
   const watchedDiscount = Number(useWatch({ control, name: 'discount_amount' })) || 0
   const watchedTaxRate = Number(useWatch({ control, name: 'tax_rate' })) || 0
+  const watchedPaymentMode = useWatch({ control, name: 'payment_mode' })
 
   const totals = useMemo(
     () =>
       calculateInvoiceTotals(
         (watchedItems ?? []).map((item) => ({
           description: item.description ?? '',
+          product_type: item.product_type ?? '',
           quantity: Number(item.quantity) || 0,
           unit_price: Number(item.unit_price) || 0,
         })),
@@ -158,21 +187,31 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
     setError(null)
     setStatusMessage(null)
 
+    const invoiceFields = {
+      invoice_number: values.invoice_number.trim(),
+      issue_date: values.issue_date,
+      status: values.status,
+      discount_amount: Number(values.discount_amount) || 0,
+      tax_rate: Number(values.tax_rate) || 0,
+      notes: values.notes.trim(),
+      payment_mode: values.payment_mode,
+      payment_mode_other: values.payment_mode_other.trim(),
+      model: invoice?.model ?? '',
+      place: invoice?.place ?? '',
+      employee_name: values.employee_name.trim(),
+      items: values.items.map((item) => ({
+        description: item.description.trim(),
+        product_type: item.product_type.trim(),
+        quantity: Number(item.quantity),
+        unit_price: Number(item.unit_price),
+      })),
+    }
+
     try {
       if (invoice) {
         const payload: InvoiceInput = {
-          invoice_number: values.invoice_number.trim(),
+          ...invoiceFields,
           customer_id: values.customer_id,
-          issue_date: values.issue_date,
-          status: values.status,
-          discount_amount: Number(values.discount_amount) || 0,
-          tax_rate: Number(values.tax_rate) || 0,
-          notes: values.notes.trim(),
-          items: values.items.map((item) => ({
-            description: item.description.trim(),
-            quantity: Number(item.quantity),
-            unit_price: Number(item.unit_price),
-          })),
         }
         await updateInvoice.mutateAsync({ id: invoice.id, input: payload })
         navigate(paths.invoiceDetail(invoice.id))
@@ -185,41 +224,38 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
           name: values.customer_name.trim(),
           phone: values.customer_phone.trim(),
           email: values.customer_email.trim(),
+          company_name: '',
           address: values.customer_address.trim(),
           notes: values.customer_notes.trim(),
         },
-        invoice: {
-          invoice_number: values.invoice_number.trim(),
-          issue_date: values.issue_date,
-          status: values.status,
-          discount_amount: Number(values.discount_amount) || 0,
-          tax_rate: Number(values.tax_rate) || 0,
-          notes: values.notes.trim(),
-          items: values.items.map((item) => ({
-            description: item.description.trim(),
-            quantity: Number(item.quantity),
-            unit_price: Number(item.unit_price),
-          })),
-        },
+        invoice: invoiceFields,
       })
 
+      let delivery: InvoiceDeliveryResult
+
       if (!company) {
-        navigate(paths.invoiceDetail(id), {
-          state: {
-            delivery: {
-              status: 'failed',
-              message:
-                'Bill created, but company settings were unavailable for PDF/email.',
-            },
-          },
-        })
-        return
+        delivery = {
+          status: 'failed',
+          message:
+            'Bill created, but company settings were unavailable for PDF/email.',
+        }
+      } else {
+        setStatusMessage('Generating PDF and sending email…')
+        try {
+          delivery = await deliverNewInvoice(id, company)
+        } catch (deliveryError) {
+          delivery = {
+            status: 'failed',
+            message:
+              deliveryError instanceof Error
+                ? deliveryError.message
+                : 'Bill created, but PDF/email delivery failed.',
+          }
+        }
       }
 
-      setStatusMessage('Generating PDF and sending email…')
-      const delivery = await deliverNewInvoice(id, company)
-
       navigate(paths.invoiceDetail(id), {
+        replace: true,
         state: { delivery },
       })
     } catch (err) {
@@ -268,13 +304,14 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Phone"
+              label="Phone number"
               type="tel"
               placeholder="+1 555 0100"
               autoComplete="tel"
               disabled={submitting}
               error={errors.customer_phone?.message}
               {...register('customer_phone', {
+                required: 'Phone number is required',
                 maxLength: { value: 40, message: 'Phone is too long' },
               })}
             />
@@ -286,6 +323,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               disabled={submitting}
               error={errors.customer_email?.message}
               {...register('customer_email', {
+                required: 'Email is required',
                 pattern: {
                   value: EMAIL_PATTERN,
                   message: 'Enter a valid email address',
@@ -296,7 +334,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
           </div>
 
           <Textarea
-            label="Address"
+            label="Address / place"
             placeholder="Street, city, state, postal code"
             disabled={submitting}
             error={errors.customer_address?.message}
@@ -321,13 +359,13 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
       <Card>
         <div className="mb-4">
           <h3 className="font-semibold text-surface-900 dark:text-surface-50">
-            Invoice details
+            Bill details
           </h3>
           <p className="text-sm text-surface-500">
-            Number, date, status, and totals for this bill.
+            Billing date, payment, and employee.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Input
             label="Invoice number"
             disabled={submitting}
@@ -350,11 +388,11 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             />
           ) : null}
           <Input
-            label="Date"
+            label="Billing date"
             type="date"
             disabled={submitting}
             error={errors.issue_date?.message}
-            {...register('issue_date', { required: 'Date is required' })}
+            {...register('issue_date', { required: 'Billing date is required' })}
           />
           <Select
             label="Status"
@@ -363,6 +401,34 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             options={statusOptions}
             {...register('status', { required: 'Status is required' })}
           />
+          <Input
+            label="Employee name"
+            placeholder="Optional"
+            disabled={submitting}
+            error={errors.employee_name?.message}
+            {...register('employee_name', {
+              maxLength: { value: 120, message: 'Name is too long' },
+            })}
+          />
+          <Select
+            label="Payment mode"
+            disabled={submitting}
+            error={errors.payment_mode?.message}
+            options={paymentModeOptions}
+            {...register('payment_mode')}
+          />
+          {watchedPaymentMode === 'other' ? (
+            <Input
+              label="Other payment mode"
+              placeholder="Describe payment mode"
+              disabled={submitting}
+              error={errors.payment_mode_other?.message}
+              {...register('payment_mode_other', {
+                required: 'Describe the payment mode',
+                maxLength: { value: 80, message: 'Too long' },
+              })}
+            />
+          ) : null}
         </div>
       </Card>
 
@@ -373,7 +439,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               Line items
             </h3>
             <p className="text-sm text-surface-500">
-              Product, quantity, and price for each line.
+              Product, type, quantity, and amount for each line.
             </p>
           </div>
           <Button
@@ -382,7 +448,12 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             size="sm"
             disabled={submitting}
             onClick={() =>
-              append({ description: '', quantity: 1, unit_price: 0 })
+              append({
+                description: '',
+                product_type: '',
+                quantity: 1,
+                unit_price: 0,
+              })
             }
           >
             <Plus className="h-4 w-4" />
@@ -401,7 +472,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
                 key={field.id}
                 className="grid gap-3 rounded-xl border border-surface-100 p-3 sm:grid-cols-12 dark:border-surface-800"
               >
-                <div className="sm:col-span-5">
+                <div className="sm:col-span-3">
                   <Input
                     label={index === 0 ? 'Product' : undefined}
                     placeholder="Product or service"
@@ -409,6 +480,17 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
                     error={errors.items?.[index]?.description?.message}
                     {...register(`items.${index}.description`, {
                       required: 'Product is required',
+                    })}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Input
+                    label={index === 0 ? 'Product type' : undefined}
+                    placeholder="Type"
+                    disabled={submitting}
+                    error={errors.items?.[index]?.product_type?.message}
+                    {...register(`items.${index}.product_type`, {
+                      required: 'Product type is required',
                     })}
                   />
                 </div>
@@ -429,7 +511,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
                 </div>
                 <div className="sm:col-span-2">
                   <Input
-                    label={index === 0 ? 'Price' : undefined}
+                    label={index === 0 ? 'Amount' : undefined}
                     type="number"
                     step="0.01"
                     min="0"
@@ -445,7 +527,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
                 <div className="flex items-end justify-between gap-2 sm:col-span-3">
                   <div className="flex-1">
                     <p className="mb-1.5 text-sm font-medium text-surface-700 dark:text-surface-200">
-                      {index === 0 ? 'Line total' : '\u00A0'}
+                      {index === 0 ? 'Total amount' : '\u00A0'}
                     </p>
                     <div className="flex h-10 items-center rounded-lg border border-surface-200 bg-surface-50 px-3 text-sm font-medium dark:border-surface-700 dark:bg-surface-950">
                       {formatCurrency(amount, currency)}
@@ -480,6 +562,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               disabled={submitting}
               error={errors.discount_amount?.message}
               {...register('discount_amount', {
+                required: 'Discount is required',
                 valueAsNumber: true,
                 min: { value: 0, message: 'Must be ≥ 0' },
               })}
@@ -498,8 +581,8 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             />
           </div>
           <Textarea
-            label="Invoice notes"
-            placeholder="Optional notes for this invoice"
+            label="Comments"
+            placeholder="Optional comments for this bill"
             disabled={submitting}
             {...register('notes')}
           />
@@ -529,7 +612,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               </dd>
             </div>
             <div className="flex justify-between gap-4 border-t border-surface-100 pt-3 text-base dark:border-surface-800">
-              <dt className="font-semibold">Total</dt>
+              <dt className="font-semibold">Total amount</dt>
               <dd className="font-semibold">
                 {formatCurrency(totals.total, currency)}
               </dd>

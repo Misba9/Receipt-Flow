@@ -12,10 +12,16 @@ import type {
   InvoiceStatus,
   InvoicesListParams,
   InvoicesListResult,
+  PaymentMode,
 } from '@/services/invoices/types'
 
 async function getAuthContext() {
   return requireTenantContext()
+}
+
+function emptyToNull(value: string) {
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
 }
 
 function mapCustomer(raw: unknown): InvoiceListItem['customer'] {
@@ -29,6 +35,7 @@ function mapCustomer(raw: unknown): InvoiceListItem['customer'] {
     name: String(row.name ?? ''),
     email: (row.email as string | null) ?? null,
     phone: (row.phone as string | null) ?? null,
+    company_name: (row.company_name as string | null) ?? null,
     address_line1: (row.address_line1 as string | null) ?? null,
   }
 }
@@ -46,6 +53,11 @@ function mapListItem(row: Record<string, unknown>): InvoiceListItem {
     tax_amount: Number(row.tax_amount ?? 0),
     discount_amount: Number(row.discount_amount ?? 0),
     total: Number(row.total ?? 0),
+    payment_mode: (row.payment_mode as PaymentMode | null) ?? null,
+    payment_mode_other: (row.payment_mode_other as string | null) ?? null,
+    model: (row.model as string | null) ?? null,
+    place: (row.place as string | null) ?? null,
+    employee_name: (row.employee_name as string | null) ?? null,
     customer: mapCustomer(row.customer),
     created_at: String(row.created_at),
   }
@@ -117,7 +129,7 @@ export async function fetchInvoices({
       discount_amount,
       total,
       created_at,
-      customer:customers(id, name, email, phone, address_line1)
+      customer:customers(id, name, email, phone, company_name, address_line1)
     `,
       { count: 'exact' },
     )
@@ -183,14 +195,19 @@ export async function fetchInvoice(id: string): Promise<InvoiceDetail> {
       tax_amount,
       discount_amount,
       total,
+      payment_mode,
+      payment_mode_other,
+      model,
+      place,
+      employee_name,
       notes,
       footer,
       paid_at,
       pdf_url,
       pdf_generated_at,
       created_at,
-      customer:customers(id, name, email, phone, address_line1),
-      items:invoice_items(id, invoice_id, description, quantity, unit_price, amount, position)
+      customer:customers(id, name, email, phone, company_name, address_line1),
+      items:invoice_items(id, invoice_id, description, product_type, quantity, unit_price, amount, position)
     `,
     )
     .eq('id', id)
@@ -202,6 +219,7 @@ export async function fetchInvoice(id: string): Promise<InvoiceDetail> {
   const items = ((data.items ?? []) as InvoiceItem[])
     .map((item) => ({
       ...item,
+      product_type: item.product_type ?? null,
       quantity: Number(item.quantity),
       unit_price: Number(item.unit_price),
       amount: Number(item.amount),
@@ -239,6 +257,10 @@ function buildInvoicePayload(
   const due = new Date(issueDate)
   due.setDate(due.getDate() + defaults.due_days)
 
+  const paymentMode = input.payment_mode || null
+  const paymentModeOther =
+    paymentMode === 'other' ? emptyToNull(input.payment_mode_other) : null
+
   return {
     company_id: companyId,
     customer_id: input.customer_id,
@@ -254,6 +276,11 @@ function buildInvoicePayload(
     total: totals.total,
     notes: input.notes.trim() || null,
     footer: defaults.footer || null,
+    payment_mode: paymentMode,
+    payment_mode_other: paymentModeOther,
+    model: emptyToNull(input.model),
+    place: emptyToNull(input.place),
+    employee_name: emptyToNull(input.employee_name),
     paid_at: input.status === 'paid' ? new Date().toISOString() : null,
     created_by: userId,
   }
@@ -278,6 +305,7 @@ async function replaceInvoiceItems(
     company_id: companyId,
     invoice_id: invoiceId,
     description: item.description.trim(),
+    product_type: emptyToNull(item.product_type),
     quantity: item.quantity,
     unit_price: item.unit_price,
     amount: lineAmount(item.quantity, item.unit_price),
@@ -370,6 +398,11 @@ export async function updateInvoice(
       total: payload.total,
       notes: payload.notes,
       footer: payload.footer,
+      payment_mode: payload.payment_mode,
+      payment_mode_other: payload.payment_mode_other,
+      model: payload.model,
+      place: payload.place,
+      employee_name: payload.employee_name,
       paid_at: payload.paid_at,
       // Invalidate stored PDF so the next download regenerates from latest data
       pdf_url: null,
@@ -424,7 +457,7 @@ export async function uploadInvoicePdf(
     .upload(path, blob, {
       upsert: true,
       contentType: 'application/pdf',
-      cacheControl: '3600',
+      cacheControl: '0',
     })
 
   if (uploadError) throw uploadError

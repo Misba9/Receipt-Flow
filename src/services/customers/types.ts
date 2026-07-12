@@ -4,6 +4,7 @@ export type Customer = {
   name: string
   email: string | null
   phone: string | null
+  company_name: string | null
   address_line1: string | null
   notes: string | null
   is_active: boolean
@@ -15,6 +16,7 @@ export type CustomerInput = {
   name: string
   phone: string
   email: string
+  company_name: string
   address: string
   notes: string
 }

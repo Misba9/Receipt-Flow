@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Eye, FileText, Mail, Pencil, Trash2 } from 'lucide-react'
+import { FileText, Mail, Pencil, Trash2 } from 'lucide-react'
 import { DeleteInvoiceDialog } from '@/components/invoices/DeleteInvoiceDialog'
 import { DemoModeEmailBadge } from '@/components/invoices/DemoModeEmailBadge'
 import { DownloadInvoicePdfButton } from '@/components/invoices/DownloadInvoicePdfButton'
-import { EmailPreviewModal } from '@/components/invoices/EmailPreviewModal'
 import { InvoiceDocument } from '@/components/invoices/InvoiceDocument'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Alert, Button, Card, EmptyState, Spinner } from '@/components/ui'
-import { EmailService, type InvoiceEmailPreview } from '@/services/email'
 import { deliverNewInvoice } from '@/services/invoices/deliver'
 import type { InvoiceDeliveryResult } from '@/services/invoices/deliver'
 import { useInvoice, invoiceKeys } from '@/services/invoices/hooks'
@@ -30,8 +28,6 @@ export function InvoiceDetailPage() {
   const { data, isLoading, isError, error } = useInvoice(id)
   const { data: company } = useCompanySettings()
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [previewOpen, setPreviewOpen] = useState(false)
-  const [preview, setPreview] = useState<InvoiceEmailPreview | null>(null)
   const [delivery, setDelivery] = useState<InvoiceDeliveryResult | null>(
     (location.state as LocationState | null)?.delivery ?? null,
   )
@@ -41,7 +37,9 @@ export function InvoiceDetailPage() {
     if (!data || !company) return
     setIsSending(true)
     try {
-      const result = await deliverNewInvoice(data.id, company)
+      const result = await deliverNewInvoice(data.id, company, {
+        sendMode: 'manual',
+      })
       setDelivery(result)
       await queryClient.invalidateQueries({
         queryKey: invoiceKeys.detail(data.id),
@@ -72,20 +70,6 @@ export function InvoiceDetailPage() {
     }
   }
 
-  const handlePreviewEmail = () => {
-    if (!data || !company) return
-    try {
-      const next = EmailService.previewInvoiceEmail(data, company)
-      setPreview(next)
-      setPreviewOpen(true)
-    } catch (err) {
-      toast(
-        err instanceof Error ? err.message : 'Unable to preview email.',
-        'error',
-      )
-    }
-  }
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -100,14 +84,6 @@ export function InvoiceDetailPage() {
             {data ? (
               <>
                 <DownloadInvoicePdfButton invoice={data} />
-                <Button
-                  variant="secondary"
-                  disabled={!company}
-                  onClick={handlePreviewEmail}
-                >
-                  <Eye className="h-4 w-4" />
-                  Preview email
-                </Button>
                 <Button
                   variant="secondary"
                   disabled={isSending || !company}
@@ -179,12 +155,6 @@ export function InvoiceDetailPage() {
       ) : data ? (
         <InvoiceDocument invoice={data} />
       ) : null}
-
-      <EmailPreviewModal
-        open={previewOpen}
-        preview={preview}
-        onClose={() => setPreviewOpen(false)}
-      />
 
       <DeleteInvoiceDialog
         open={deleteOpen}

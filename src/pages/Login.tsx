@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { Alert, Button, Input, PasswordInput, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
+import { fetchSessionAccess } from '@/services/admin/api'
 import { paths } from '@/lib/paths'
 
 type LoginFormValues = {
@@ -19,7 +20,7 @@ export function Login() {
 
   const from =
     (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ??
-    paths.dashboard
+    null
 
   const {
     register,
@@ -37,7 +38,22 @@ export function Login() {
       setFormError(error)
       return
     }
-    navigate(from, { replace: true })
+
+    try {
+      const access = await fetchSessionAccess()
+      if (access.isSuperAdmin) {
+        navigate(from?.startsWith('/admin') ? from : paths.admin, {
+          replace: true,
+        })
+        return
+      }
+    } catch {
+      // Fall through to tenant destination
+    }
+
+    navigate(from && from !== paths.login ? from : paths.dashboard, {
+      replace: true,
+    })
   })
 
   return (

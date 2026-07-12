@@ -1,12 +1,17 @@
 /**
- * Sends an invoice email via Resend using the caller's company branding.
+ * Sends an invoice email via Resend using the platform SaaS sender.
  *
  * Platform secrets only (never per-tenant keys):
  *   RESEND_API_KEY            — global Resend account
- *   RESEND_VERIFIED_DOMAIN    — optional allowlist (e.g. velonerp.com)
+ *   RESEND_FROM_EMAIL         — SaaS From, e.g. "ReceiptFlow <billing@yourdomain.com>"
  *   APP_URL
  *
- * From / reply_to / subject come from the company row — not env hardcoding.
+ * Idempotency:
+ *   automatic — content fingerprint (safe retries of the same payload)
+ *   manual    — fresh UUID per Send Email click
+ *   On Resend key/body conflict — one retry with a new UUID, then a friendly error.
+ *
+ * Reply-To uses the company's business email when set.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
@@ -29,6 +34,8 @@ type InvoiceRow = {
   discount_amount: number
   total: number
   pdf_url: string | null
+  pdf_generated_at: string | null
+  updated_at: string | null
   status: string
   customer: {
     name: string
@@ -36,15 +43,50 @@ type InvoiceRow = {
   } | null
 }
 
+type SendMode = 'automatic' | 'manual'
+
+type SendInvoiceEmailRequest = {
+  invoiceId?: string
+  /** automatic = content fingerprint; manual = one-shot UUID per click */
+  sendMode?: SendMode
+  /** Required for manual sends; ignored for automatic */
+  idempotencyKey?: string
+}
+
+const FRIENDLY_SEND_ERROR = 'Unable to send email. Please try again later.'
+
+
 type CompanyEmailRow = {
   name: string
   email: string | null
   phone: string | null
   website: string | null
   tax_id: string | null
-  sender_name: string | null
-  sender_email: string | null
-  reply_to: string | null
+}
+
+function parsePlatformFrom(raw: string): { fromAddress: string; fromEmail: string } {
+  const trimmed = raw.trim()
+  if (!trimmed) {
+    throw new Error('RESEND_FROM_EMAIL is empty.')
+  }
+
+  const angled = trimmed.match(/^(.+?)\s*<([^>]+)>$/)
+  if (angled) {
+    const email = angled[2].trim().toLowerCase()
+    if (!isValidEmail(email)) {
+      throw new Error('RESEND_FROM_EMAIL contains an invalid email.')
+    }
+    return {
+      fromAddress: `${angled[1].trim()} <${email}>`,
+      fromEmail: email,
+    }
+  }
+
+  const email = trimmed.toLowerCase()
+  if (!isValidEmail(email)) {
+    throw new Error('RESEND_FROM_EMAIL is invalid.')
+  }
+  return { fromAddress: email, fromEmail: email }
 }
 
 function formatMoney(amount: number, currency: string) {
@@ -68,17 +110,6 @@ function escapeHtml(value: string) {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-}
-
-function extractDomain(email: string) {
-  return email.split('@')[1]?.toLowerCase() ?? ''
-}
-
-function isDomainAllowed(email: string, verifiedDomain: string | undefined) {
-  if (!verifiedDomain?.trim()) return true
-  const allowed = verifiedDomain.trim().toLowerCase().replace(/^\.+/, '')
-  const domain = extractDomain(email)
-  return domain === allowed || domain.endsWith(`.${allowed}`)
 }
 
 function buildInvoiceEmailHtml(params: {
@@ -255,6 +286,134 @@ function resendErrorMessage(body: unknown, fallback: string) {
   }
 }
 
+function isIdempotencyConflict(message: string) {
+  const lower = message.toLowerCase()
+  return (
+    lower.includes('idempotency') ||
+    lower.includes("doesn't match the original request") ||
+    lower.includes('does not match the original request')
+  )
+}
+
+async function sha256Hex(value: string) {
+  const bytes = new TextEncoder().encode(value)
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+/** Content fingerprint — changes when invoice totals or stored PDF change. */
+async function buildAutomaticIdempotencyKey(row: InvoiceRow) {
+  const fingerprint = [
+    row.id,
+    row.invoice_number,
+    row.pdf_url ?? '',
+    row.pdf_generated_at ?? '',
+    row.updated_at ?? '',
+    String(row.subtotal),
+    String(row.discount_amount),
+    String(row.tax_amount),
+    String(row.total),
+    row.currency,
+    row.customer?.email?.trim().toLowerCase() ?? '',
+  ].join('|')
+
+  const hash = await sha256Hex(fingerprint)
+  return `rf-auto-${hash}`.slice(0, 256)
+}
+
+function newManualIdempotencyKey() {
+  return `rf-manual-${crypto.randomUUID()}`.slice(0, 256)
+}
+
+function resolveClientIdempotencyKey(
+  sendMode: SendMode,
+  provided: string | undefined,
+  automaticKey: string,
+) {
+  if (sendMode === 'manual') {
+    const trimmed = provided?.trim()
+    if (trimmed) return trimmed.slice(0, 256)
+    return newManualIdempotencyKey()
+  }
+  return automaticKey
+}
+
+type ResendSendResult =
+  | { ok: true; body: Record<string, unknown> }
+  | { ok: false; status: number; message: string; body: unknown; raw: string }
+
+async function postResendEmail(
+  resendApiKey: string,
+  payload: Record<string, unknown>,
+  idempotencyKey: string,
+): Promise<ResendSendResult> {
+  const resendResponse = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const resendRaw = await resendResponse.text()
+  let resendBody: unknown = null
+  try {
+    resendBody = resendRaw ? JSON.parse(resendRaw) : null
+  } catch {
+    resendBody = { raw: resendRaw }
+  }
+
+  if (!resendResponse.ok) {
+    const message = resendErrorMessage(
+      resendBody,
+      `Failed to send invoice email via Resend (HTTP ${resendResponse.status}).`,
+    )
+    return {
+      ok: false,
+      status: resendResponse.status,
+      message,
+      body: resendBody,
+      raw: resendRaw,
+    }
+  }
+
+  return {
+    ok: true,
+    body: (resendBody ?? {}) as Record<string, unknown>,
+  }
+}
+
+/**
+ * Send via Resend with idempotency.
+ * On key/body conflict, retry once with a fresh UUID (Resend best practice for changed payloads).
+ */
+async function sendWithIdempotency(
+  resendApiKey: string,
+  payload: Record<string, unknown>,
+  primaryKey: string,
+) {
+  const first = await postResendEmail(resendApiKey, payload, primaryKey)
+  if (first.ok) return first
+
+  if (!isIdempotencyConflict(first.message)) {
+    return first
+  }
+
+  console.error('Resend idempotency conflict — retrying once with a fresh key', {
+    status: first.status,
+    message: first.message,
+    body: first.body,
+    previousKeyPrefix: primaryKey.slice(0, 24),
+  })
+
+  const retryKey = newManualIdempotencyKey()
+  return postResendEmail(resendApiKey, payload, retryKey)
+}
+
 function fail(message: string, status: number) {
   return jsonResponse({ success: false, message, error: message }, status)
 }
@@ -270,7 +429,7 @@ Deno.serve(async (req) => {
 
   try {
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    const verifiedDomain = Deno.env.get('RESEND_VERIFIED_DOMAIN')
+    const resendFromEmail = Deno.env.get('RESEND_FROM_EMAIL')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -278,6 +437,23 @@ Deno.serve(async (req) => {
 
     if (!resendApiKey) {
       return fail('Email is not configured. Set RESEND_API_KEY secret.', 500)
+    }
+
+    if (!resendFromEmail?.trim()) {
+      return fail(
+        'Email sender is not configured. Set RESEND_FROM_EMAIL secret.',
+        500,
+      )
+    }
+
+    let platformFrom: { fromAddress: string; fromEmail: string }
+    try {
+      platformFrom = parsePlatformFrom(resendFromEmail)
+    } catch (error) {
+      return fail(
+        error instanceof Error ? error.message : 'Invalid RESEND_FROM_EMAIL.',
+        500,
+      )
     }
 
     if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
@@ -289,7 +465,11 @@ Deno.serve(async (req) => {
       return fail('Missing authorization header.', 401)
     }
 
-    const { invoiceId } = (await req.json()) as { invoiceId?: string }
+    const body = (await req.json()) as SendInvoiceEmailRequest
+    const invoiceId = body.invoiceId
+    const sendMode: SendMode =
+      body.sendMode === 'manual' ? 'manual' : 'automatic'
+
     if (!invoiceId) {
       return fail('invoiceId is required.', 400)
     }
@@ -336,6 +516,8 @@ Deno.serve(async (req) => {
         discount_amount,
         total,
         pdf_url,
+        pdf_generated_at,
+        updated_at,
         status,
         customer:customers(name, email)
       `,
@@ -373,9 +555,7 @@ Deno.serve(async (req) => {
       await Promise.all([
         supabase
           .from('companies')
-          .select(
-            'name, email, phone, website, tax_id, sender_name, sender_email, reply_to',
-          )
+          .select('name, email, phone, website, tax_id')
           .eq('id', callerCompanyId)
           .maybeSingle(),
         supabase
@@ -395,33 +575,13 @@ Deno.serve(async (req) => {
       return fail('Company name is missing. Update company settings.', 422)
     }
 
-    const senderName = (companyRow.sender_name ?? companyName).trim()
-    const senderEmail = (companyRow.sender_email ?? '').trim().toLowerCase()
-    if (!senderEmail) {
-      return fail(
-        'Sender email is empty. Set Sender Email in Company Settings.',
-        422,
-      )
-    }
-    if (!isValidEmail(senderEmail)) {
-      return fail('Sender email is invalid.', 422)
-    }
-    if (!isDomainAllowed(senderEmail, verifiedDomain ?? undefined)) {
-      return fail(
-        'Sender domain is not verified for this platform Resend account.',
-        400,
-      )
-    }
-
-    const replyToRaw = (companyRow.reply_to ?? companyRow.email ?? '')
-      .trim()
-      .toLowerCase()
+    const replyToRaw = (companyRow.email ?? '').trim().toLowerCase()
     if (replyToRaw && !isValidEmail(replyToRaw)) {
-      return fail('Reply-to email is invalid.', 422)
+      return fail('Company email is invalid.', 422)
     }
 
     const brandColor = settings?.primary_color ?? '#1a73f5'
-    const fromAddress = `${senderName} <${senderEmail}>`
+    const fromAddress = platformFrom.fromAddress
     const subject = `Invoice from ${companyName}`
 
     const { data: pdfFile, error: pdfError } = await admin.storage
@@ -461,11 +621,12 @@ Deno.serve(async (req) => {
       currency: row.currency,
     })
 
-    const idempotencyKey =
-      `invoice-email:${invoiceId}:${row.invoice_number}:${senderEmail}`.slice(
-        0,
-        256,
-      )
+    const automaticKey = await buildAutomaticIdempotencyKey(row)
+    const idempotencyKey = resolveClientIdempotencyKey(
+      sendMode,
+      body.idempotencyKey,
+      automaticKey,
+    )
 
     const resendPayload: Record<string, unknown> = {
       from: fromAddress,
@@ -483,6 +644,7 @@ Deno.serve(async (req) => {
       tags: [
         { name: 'category', value: 'invoice' },
         { name: 'invoice_id', value: invoiceId },
+        { name: 'send_mode', value: sendMode },
       ],
     }
 
@@ -490,39 +652,29 @@ Deno.serve(async (req) => {
       resendPayload.reply_to = [replyToRaw]
     }
 
-    const resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify(resendPayload),
-    })
+    const sendResult = await sendWithIdempotency(
+      resendApiKey,
+      resendPayload,
+      idempotencyKey,
+    )
 
-    const resendRaw = await resendResponse.text()
-    let resendBody: unknown = null
-    try {
-      resendBody = resendRaw ? JSON.parse(resendRaw) : null
-    } catch {
-      resendBody = { raw: resendRaw }
-    }
-
-    if (!resendResponse.ok) {
+    if (!sendResult.ok) {
       console.error('Resend API error — complete response:', {
-        status: resendResponse.status,
-        statusText: resendResponse.statusText,
-        body: resendBody,
-        raw: resendRaw,
+        status: sendResult.status,
+        message: sendResult.message,
+        body: sendResult.body,
+        raw: sendResult.raw,
+        sendMode,
       })
-      const message = resendErrorMessage(
-        resendBody,
-        `Failed to send invoice email via Resend (HTTP ${resendResponse.status}).`,
-      )
-      return fail(message, 400)
+
+      const clientMessage = isIdempotencyConflict(sendResult.message)
+        ? FRIENDLY_SEND_ERROR
+        : sendResult.message
+
+      return fail(clientMessage, sendResult.status >= 500 ? 502 : 400)
     }
 
-    const sent = (resendBody ?? {}) as Record<string, unknown>
+    const sent = sendResult.body
 
     return jsonResponse({
       success: true,

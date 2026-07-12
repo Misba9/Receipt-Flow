@@ -100,44 +100,54 @@ export async function fetchPlatformStats(): Promise<PlatformStats> {
 }
 
 export async function fetchAdminCompanies(): Promise<AdminCompany[]> {
-  const { data, error } = await supabase.rpc('admin_list_companies')
+  const [access, companiesResult] = await Promise.all([
+    fetchSessionAccess(),
+    supabase.rpc('admin_list_companies'),
+  ])
+
+  const { data, error } = companiesResult
   if (error) throw error
 
-  return (data ?? []).map((row: Record<string, unknown>) => ({
-    id: String(row.id),
-    name: String(row.name ?? ''),
-    email: (row.email as string | null) ?? null,
-    phone: (row.phone as string | null) ?? null,
-    isActive: Boolean(row.is_active),
-    disabledAt: (row.disabled_at as string | null) ?? null,
-    disabledReason: (row.disabled_reason as string | null) ?? null,
-    subscriptionStatus: row.subscription_status as SubscriptionStatus,
-    subscriptionPlan: (row.subscription_plan as string | null) ?? null,
-    subscriptionEndsAt: (row.subscription_ends_at as string | null) ?? null,
-    createdAt: String(row.created_at),
-    userCount: asNumber(row.user_count),
-    customerCount: asNumber(row.customer_count),
-    invoiceCount: asNumber(row.invoice_count),
-    revenue: asNumber(row.revenue),
-  }))
+  return (data ?? [])
+    .map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      name: String(row.name ?? ''),
+      email: (row.email as string | null) ?? null,
+      phone: (row.phone as string | null) ?? null,
+      isActive: Boolean(row.is_active),
+      disabledAt: (row.disabled_at as string | null) ?? null,
+      disabledReason: (row.disabled_reason as string | null) ?? null,
+      subscriptionStatus: row.subscription_status as SubscriptionStatus,
+      subscriptionPlan: (row.subscription_plan as string | null) ?? null,
+      subscriptionEndsAt: (row.subscription_ends_at as string | null) ?? null,
+      createdAt: String(row.created_at),
+      userCount: asNumber(row.user_count),
+      customerCount: asNumber(row.customer_count),
+      invoiceCount: asNumber(row.invoice_count),
+      revenue: asNumber(row.revenue),
+    }))
+    // Safety net: never show the signed-in super admin's own workspace
+    .filter((company: AdminCompany) => company.id !== access.companyId)
 }
 
 export async function fetchAdminUsers(): Promise<AdminUser[]> {
   const { data, error } = await supabase.rpc('admin_list_users')
   if (error) throw error
 
-  return (data ?? []).map((row: Record<string, unknown>) => ({
-    id: String(row.id),
-    email: (row.email as string | null) ?? null,
-    fullName: (row.full_name as string | null) ?? null,
-    role: row.role as AdminUser['role'],
-    isSuperAdmin: Boolean(row.is_super_admin),
-    companyId: String(row.company_id),
-    companyName: String(row.company_name ?? ''),
-    companyActive: Boolean(row.company_active),
-    createdAt: String(row.created_at),
-    lastSignInAt: (row.last_sign_in_at as string | null) ?? null,
-  }))
+  return (data ?? [])
+    .map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      email: (row.email as string | null) ?? null,
+      fullName: (row.full_name as string | null) ?? null,
+      role: row.role as AdminUser['role'],
+      isSuperAdmin: Boolean(row.is_super_admin),
+      companyId: String(row.company_id),
+      companyName: String(row.company_name ?? ''),
+      companyActive: Boolean(row.company_active),
+      createdAt: String(row.created_at),
+      lastSignInAt: (row.last_sign_in_at as string | null) ?? null,
+    }))
+    .filter((user: AdminUser) => !user.isSuperAdmin)
 }
 
 export async function setCompanyActive(

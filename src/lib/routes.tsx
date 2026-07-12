@@ -131,73 +131,7 @@ export function AppRoutes() {
         />
 
         <Route element={<CompanyActiveGate />}>
-          <Route element={<OnboardingGate />}>
-            <Route element={<AppShell />}>
-            <Route
-              path={paths.dashboard}
-              element={
-                <LazyRoute>
-                  <DashboardPage />
-                </LazyRoute>
-              }
-            />
-            <Route
-              path={paths.customers}
-              element={
-                <LazyRoute>
-                  <CustomersPage />
-                </LazyRoute>
-              }
-            />
-            <Route
-              path={paths.invoices}
-              element={
-                <LazyRoute>
-                  <InvoicesPage />
-                </LazyRoute>
-              }
-            />
-            <Route
-              path={paths.invoiceNew}
-              element={
-                <LazyRoute>
-                  <InvoiceCreatePage />
-                </LazyRoute>
-              }
-            />
-            <Route
-              path="/invoices/:id"
-              element={
-                <LazyRoute>
-                  <InvoiceDetailPage />
-                </LazyRoute>
-              }
-            />
-            <Route
-              path="/invoices/:id/edit"
-              element={
-                <LazyRoute>
-                  <InvoiceEditPage />
-                </LazyRoute>
-              }
-            />
-            <Route
-              path={paths.reports}
-              element={
-                <LazyRoute>
-                  <ReportsPage />
-                </LazyRoute>
-              }
-            />
-            <Route
-              path={paths.settings}
-              element={
-                <LazyRoute>
-                  <SettingsPage />
-                </LazyRoute>
-              }
-            />
-
+          <Route element={<AppShell />}>
             <Route element={<SuperAdminRoute />}>
               <Route
                 path={paths.admin}
@@ -224,6 +158,74 @@ export function AppRoutes() {
                 }
               />
             </Route>
+          </Route>
+
+          <Route element={<OnboardingGate />}>
+            <Route element={<AppShell />}>
+              <Route
+                path={paths.dashboard}
+                element={
+                  <LazyRoute>
+                    <DashboardPage />
+                  </LazyRoute>
+                }
+              />
+              <Route
+                path={paths.customers}
+                element={
+                  <LazyRoute>
+                    <CustomersPage />
+                  </LazyRoute>
+                }
+              />
+              <Route
+                path={paths.invoices}
+                element={
+                  <LazyRoute>
+                    <InvoicesPage />
+                  </LazyRoute>
+                }
+              />
+              <Route
+                path={paths.invoiceNew}
+                element={
+                  <LazyRoute>
+                    <InvoiceCreatePage />
+                  </LazyRoute>
+                }
+              />
+              <Route
+                path="/invoices/:id"
+                element={
+                  <LazyRoute>
+                    <InvoiceDetailPage />
+                  </LazyRoute>
+                }
+              />
+              <Route
+                path="/invoices/:id/edit"
+                element={
+                  <LazyRoute>
+                    <InvoiceEditPage />
+                  </LazyRoute>
+                }
+              />
+              <Route
+                path={paths.reports}
+                element={
+                  <LazyRoute>
+                    <ReportsPage />
+                  </LazyRoute>
+                }
+              />
+              <Route
+                path={paths.settings}
+                element={
+                  <LazyRoute>
+                    <SettingsPage />
+                  </LazyRoute>
+                }
+              />
             </Route>
           </Route>
         </Route>

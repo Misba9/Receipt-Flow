@@ -3,6 +3,7 @@ export type ProfileRole = 'owner' | 'admin' | 'member'
 /**
  * Unified per-company settings DTO.
  * Maps to `companies` + `settings` (never exposes Resend API keys).
+ * Invoice From address uses the platform RESEND_FROM_EMAIL secret.
  */
 export type CompanySettings = {
   companyId: string
@@ -20,9 +21,6 @@ export type CompanySettings = {
   postalCode: string
   country: string
   logoUrl: string | null
-  senderName: string
-  senderEmail: string
-  replyTo: string
   primaryColor: string
   invoiceFooter: string
   currency: string
@@ -47,9 +45,6 @@ export type CompanySettingsInput = {
   postalCode: string
   country: string
   logoUrl: string | null
-  senderName: string
-  senderEmail: string
-  replyTo: string
   primaryColor: string
   invoiceFooter: string
   currency: string

@@ -4,7 +4,7 @@ import {
 } from '@/services/invoices/api'
 import type { InvoiceDetail } from '@/services/invoices/types'
 import type { CompanySettings } from '@/services/settings/types'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { formatDate } from '@/lib/format'
 
 const PAGE_WIDTH = 595.28 // A4
 const PAGE_HEIGHT = 841.89
@@ -24,6 +24,36 @@ type PdfColors = {
   muted: RGB
   line: RGB
   headerBg: RGB
+}
+
+/** Helvetica uses WinAnsi — replace symbols that cannot be encoded (e.g. ₹). */
+function toPdfSafeText(value: string) {
+  const text = value
+    .replaceAll('₹', 'Rs.')
+    .replaceAll('€', 'EUR ')
+    .replaceAll('₩', 'KRW ')
+    .replaceAll('₪', 'ILS ')
+    .replaceAll('₴', 'UAH ')
+    .replaceAll('₦', 'NGN ')
+    .replaceAll('₽', 'RUB ')
+    .replaceAll('₫', 'VND ')
+    .replaceAll('฿', 'THB ')
+    .replaceAll('₱', 'PHP ')
+    .replaceAll('−', '-') // U+2212 minus
+    .replaceAll('–', '-') // en dash
+    .replaceAll('—', '-') // em dash
+
+  // Drop characters outside Latin-1 (WinAnsi-compatible set for Helvetica)
+  let safe = ''
+  for (const char of text) {
+    const code = char.charCodeAt(0)
+    if (code === 9 || code === 10 || code === 13 || (code >= 32 && code <= 255)) {
+      safe += char
+    } else {
+      safe += '?'
+    }
+  }
+  return safe
 }
 
 function hexToRgb(pdfLib: PdfLib, hex: string): RGB {
@@ -46,12 +76,30 @@ function hexToRgb(pdfLib: PdfLib, hex: string): RGB {
   )
 }
 
+/** ASCII-safe money for PDF (avoids ₹ and other non-WinAnsi currency glyphs). */
 function formatMoney(amount: number, currency: string) {
-  try {
-    return formatCurrency(amount, currency)
-  } catch {
-    return `${currency} ${amount.toFixed(2)}`
+  const code = currency.trim().toUpperCase() || 'USD'
+  const number = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(amount) || 0)
+
+  const prefixByCode: Record<string, string> = {
+    USD: '$',
+    CAD: 'CA$',
+    AUD: 'A$',
+    NZD: 'NZ$',
+    GBP: '£',
+    INR: 'Rs.',
+    EUR: 'EUR ',
+    JPY: 'JPY ',
+    CNY: 'CNY ',
+    AED: 'AED ',
+    SAR: 'SAR ',
   }
+
+  const prefix = prefixByCode[code] ?? `${code} `
+  return toPdfSafeText(`${prefix}${number}`)
 }
 
 function companyAddressLines(company: CompanySettings) {
@@ -69,7 +117,7 @@ function companyAddressLines(company: CompanySettings) {
 }
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number) {
-  const words = text.split(/\s+/).filter(Boolean)
+  const words = toPdfSafeText(text).split(/\s+/).filter(Boolean)
   if (words.length === 0) return ['']
 
   const lines: string[] = []
@@ -135,8 +183,9 @@ function drawRightText(
   size: number,
   color: RGB,
 ) {
-  const width = font.widthOfTextAtSize(text, size)
-  page.drawText(text, {
+  const safe = toPdfSafeText(text)
+  const width = font.widthOfTextAtSize(safe, size)
+  page.drawText(safe, {
     x: xRight - width,
     y,
     size,
@@ -156,7 +205,7 @@ function drawWrappedText(
   maxWidth: number,
   lineHeight = size + 4,
 ) {
-  const lines = wrapText(text, font, size, maxWidth)
+  const lines = wrapText(toPdfSafeText(text), font, size, maxWidth)
   lines.forEach((line, index) => {
     page.drawText(line, {
       x,
@@ -283,7 +332,7 @@ export async function generateInvoicePdf(
     companyTextX = MARGIN + w + 14
   }
 
-  page.drawText(company.name || 'Company', {
+  page.drawText(toPdfSafeText(company.name || 'Company'), {
     x: companyTextX,
     y: y - 14,
     size: 16,
@@ -331,7 +380,7 @@ export async function generateInvoicePdf(
   )
   drawRightText(
     page,
-    `Date: ${formatDate(invoice.issue_date, undefined, company.timezone)}`,
+    `Billing date: ${formatDate(invoice.issue_date, undefined, company.timezone)}`,
     metaRight,
     y - 52,
     font,
@@ -379,7 +428,7 @@ export async function generateInvoicePdf(
   })
   y -= 16
 
-  page.drawText(invoice.customer?.name ?? 'Customer', {
+  page.drawText(toPdfSafeText(invoice.customer?.name ?? 'Customer'), {
     x: MARGIN,
     y,
     size: 12,
@@ -395,7 +444,32 @@ export async function generateInvoicePdf(
   ].filter(Boolean) as string[]
 
   customerLines.forEach((line) => {
-    page.drawText(line, {
+    page.drawText(toPdfSafeText(line), {
+      x: MARGIN,
+      y,
+      size: 9,
+      font,
+      color: colors.muted,
+    })
+    y -= 12
+  })
+
+  y -= 10
+  const billMeta = [
+    invoice.model ? `Model: ${invoice.model}` : '',
+    invoice.place ? `Place: ${invoice.place}` : '',
+    invoice.employee_name ? `Employee: ${invoice.employee_name}` : '',
+    invoice.payment_mode
+      ? `Payment: ${
+          invoice.payment_mode === 'other'
+            ? invoice.payment_mode_other || 'Other'
+            : invoice.payment_mode.replaceAll('_', ' ')
+        }`
+      : '',
+  ].filter(Boolean)
+
+  billMeta.forEach((line) => {
+    page.drawText(toPdfSafeText(line), {
       x: MARGIN,
       y,
       size: 9,
@@ -440,15 +514,18 @@ export async function generateInvoicePdf(
       color: colors.muted,
     })
     drawRightText(page, 'QTY', col.qty + 30, y, fontBold, 8, colors.muted)
-    drawRightText(page, 'PRICE', col.price + 40, y, fontBold, 8, colors.muted)
-    drawRightText(page, 'AMOUNT', col.amount, y, fontBold, 8, colors.muted)
+    drawRightText(page, 'AMOUNT', col.price + 40, y, fontBold, 8, colors.muted)
+    drawRightText(page, 'TOTAL', col.amount, y, fontBold, 8, colors.muted)
     y -= rowHeight
   }
 
   drawTableHeader()
 
   invoice.items.forEach((item, index) => {
-    const descriptionLines = wrapText(item.description, font, 9, productWidth)
+    const productLabel = item.product_type
+      ? `${item.description} (${item.product_type})`
+      : item.description
+    const descriptionLines = wrapText(productLabel, font, 9, productWidth)
     const blockHeight = Math.max(rowHeight, descriptionLines.length * 12 + 8)
 
     ensureSpace(blockHeight + 8)
@@ -520,36 +597,47 @@ export async function generateInvoicePdf(
   })
 
   y -= 16
-  ensureSpace(130)
+  ensureSpace(150)
 
-  const totalsXLabel = PAGE_WIDTH - MARGIN - 180
+  const totalsBoxWidth = 200
+  const totalsXLabel = PAGE_WIDTH - MARGIN - totalsBoxWidth
   const totalsXValue = PAGE_WIDTH - MARGIN
+  const totalsPadX = 8
 
   const drawTotalRow = (
     label: string,
     value: string,
-    options?: { bold?: boolean; brand?: boolean; size?: number },
+    options?: { bold?: boolean; brand?: boolean; size?: number; gap?: number },
   ) => {
     const size = options?.size ?? 10
+    const gap = options?.gap ?? Math.max(16, Math.ceil(size * 1.6))
     const rowFont = options?.bold ? fontBold : font
     const color = options?.brand ? colors.brand : colors.text
 
-    page.drawText(label, {
+    page.drawText(toPdfSafeText(label), {
       x: totalsXLabel,
       y,
       size,
       font: rowFont,
       color: options?.brand ? colors.brand : colors.muted,
     })
-    drawRightText(page, value, totalsXValue, y, rowFont, size, color)
-    y -= 16
+    drawRightText(
+      page,
+      toPdfSafeText(value),
+      totalsXValue,
+      y,
+      rowFont,
+      size,
+      color,
+    )
+    y -= gap
   }
 
   drawTotalRow('Subtotal', formatMoney(invoice.subtotal, invoice.currency))
   if (invoice.discount_amount > 0) {
     drawTotalRow(
       'Discount',
-      `−${formatMoney(invoice.discount_amount, invoice.currency)}`,
+      `-${formatMoney(invoice.discount_amount, invoice.currency)}`,
     )
   }
   drawTotalRow(
@@ -557,20 +645,37 @@ export async function generateInvoicePdf(
     formatMoney(invoice.tax_amount, invoice.currency),
   )
 
-  y -= 4
+  y -= 6
+  const grandSize = 12
+  const grandPadY = 10
+  const grandRowHeight = grandSize + grandPadY * 2
+  ensureSpace(grandRowHeight + 20)
+
   page.drawRectangle({
-    x: totalsXLabel - 8,
-    y: y - 4,
-    width: PAGE_WIDTH - MARGIN - (totalsXLabel - 8),
-    height: 28,
+    x: totalsXLabel - totalsPadX,
+    y: y - grandPadY,
+    width: totalsBoxWidth + totalsPadX,
+    height: grandRowHeight,
     color: colors.headerBg,
   })
-  y -= 2
-  drawTotalRow('Grand Total', formatMoney(invoice.total, invoice.currency), {
-    bold: true,
-    brand: true,
-    size: 12,
+
+  page.drawText(toPdfSafeText('Grand Total'), {
+    x: totalsXLabel,
+    y,
+    size: grandSize,
+    font: fontBold,
+    color: colors.brand,
   })
+  drawRightText(
+    page,
+    formatMoney(invoice.total, invoice.currency),
+    totalsXValue,
+    y,
+    fontBold,
+    grandSize,
+    colors.brand,
+  )
+  y -= grandRowHeight + 4
 
   if (invoice.notes?.trim()) {
     y -= 12

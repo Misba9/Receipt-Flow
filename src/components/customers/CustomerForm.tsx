@@ -14,7 +14,7 @@ type CustomerFormProps = {
   onCancel: () => void
 }
 
-const EMAIL_PATTERN = /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function CustomerForm({
   customer,
@@ -32,6 +32,7 @@ export function CustomerForm({
       name: customer?.name ?? '',
       phone: customer?.phone ?? '',
       email: customer?.email ?? '',
+      company_name: customer?.company_name ?? '',
       address: customer?.address_line1 ?? '',
       notes: customer?.notes ?? '',
     },
@@ -45,6 +46,7 @@ export function CustomerForm({
           name: values.name.trim(),
           phone: values.phone.trim(),
           email: values.email.trim(),
+          company_name: '',
           address: values.address.trim(),
           notes: values.notes.trim(),
         })
@@ -68,13 +70,14 @@ export function CustomerForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Input
-          label="Phone"
+          label="Phone number"
           type="tel"
           placeholder="+1 555 0100"
           autoComplete="tel"
           disabled={submitting}
           error={errors.phone?.message}
           {...register('phone', {
+            required: 'Phone number is required',
             maxLength: { value: 40, message: 'Phone is too long' },
           })}
         />
@@ -86,6 +89,7 @@ export function CustomerForm({
           disabled={submitting}
           error={errors.email?.message}
           {...register('email', {
+            required: 'Email is required',
             pattern: {
               value: EMAIL_PATTERN,
               message: 'Enter a valid email address',
@@ -96,7 +100,7 @@ export function CustomerForm({
       </div>
 
       <Textarea
-        label="Address"
+        label="Address / place"
         placeholder="Street, city, state, postal code"
         disabled={submitting}
         error={errors.address?.message}
@@ -107,7 +111,7 @@ export function CustomerForm({
       />
 
       <Textarea
-        label="Notes"
+        label="Comments"
         placeholder="Internal notes about this customer"
         disabled={submitting}
         error={errors.notes?.message}

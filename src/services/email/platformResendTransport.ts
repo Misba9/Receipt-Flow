@@ -14,7 +14,10 @@ export const platformResendTransport: InvoiceEmailTransport = {
   async sendInvoiceEmail(
     request: InvoiceEmailDispatchRequest,
   ): Promise<InvoiceEmailDispatchResult> {
-    const result = await invokeSendInvoiceEmail(request.invoiceId)
+    const result = await invokeSendInvoiceEmail(request.invoiceId, {
+      sendMode: request.sendMode,
+      idempotencyKey: request.idempotencyKey,
+    })
     return {
       success: true,
       id: result.id,

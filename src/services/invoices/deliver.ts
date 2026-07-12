@@ -1,5 +1,6 @@
 import { EmailService } from '@/services/email'
 import { fetchInvoice, uploadInvoicePdf } from '@/services/invoices/api'
+import type { InvoiceEmailSendMode } from '@/services/invoices/email'
 import { generateInvoicePdf } from '@/services/invoices/pdf'
 import type { CompanySettings } from '@/services/settings/types'
 
@@ -12,14 +13,24 @@ export type InvoiceDeliveryResult = {
   mode?: 'development' | 'production'
 }
 
+export type DeliverInvoiceOptions = {
+  /**
+   * automatic — create-bill / first delivery (content-based idempotency)
+   * manual — Send email button (fresh UUID every click)
+   */
+  sendMode?: InvoiceEmailSendMode
+}
+
 /**
- * After an invoice is created: generate PDF → upload to Storage → email via EmailService.
+ * Generate PDF → upload to Storage → email via EmailService.
  * PDF generation always runs; only the email transport respects development mode.
  */
 export async function deliverNewInvoice(
   invoiceId: string,
   company: CompanySettings,
+  options: DeliverInvoiceOptions = {},
 ): Promise<InvoiceDeliveryResult> {
+  const sendMode = options.sendMode ?? 'automatic'
   const invoice = await fetchInvoice(invoiceId)
 
   const blob = await generateInvoicePdf(invoice, company)
@@ -35,7 +46,12 @@ export async function deliverNewInvoice(
   }
 
   try {
-    const result = await EmailService.sendInvoiceEmail(invoiceId)
+    const result = await EmailService.sendInvoiceEmail(invoiceId, {
+      sendMode,
+      // Manual clicks always get a brand-new key; automatic uses server content hash.
+      idempotencyKey:
+        sendMode === 'manual' ? `rf-manual-${crypto.randomUUID()}` : undefined,
+    })
     return {
       status: 'sent',
       to: result.to ?? customerEmail,
@@ -46,12 +62,13 @@ export async function deliverNewInvoice(
           : result.message,
     }
   } catch (error) {
+    console.error('[email] deliverNewInvoice failed', error)
     return {
       status: 'failed',
       message:
         error instanceof Error
           ? error.message
-          : 'Invoice saved, but email could not be sent.',
+          : 'Unable to send email. Please try again later.',
     }
   }
 }

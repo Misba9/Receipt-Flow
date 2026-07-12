@@ -142,7 +142,7 @@ export function getProfileCompletion(settings: {
   website: string
   phone: string
   addressLine1: string
-  senderEmail: string
+  email: string
   invoiceFooter: string
 }) {
   const checks = [
@@ -151,7 +151,7 @@ export function getProfileCompletion(settings: {
     Boolean(settings.website.trim()),
     Boolean(settings.phone.trim()),
     Boolean(settings.addressLine1.trim()),
-    Boolean(settings.senderEmail.trim()),
+    Boolean(settings.email.trim()),
     Boolean(settings.invoiceFooter.trim()),
   ]
   const done = checks.filter(Boolean).length

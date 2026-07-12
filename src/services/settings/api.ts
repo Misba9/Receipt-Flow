@@ -78,7 +78,7 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
       supabase
         .from('companies')
         .select(
-          'id, name, business_type, email, phone, website, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url, sender_name, sender_email, reply_to, onboarding_completed_at',
+          'id, name, business_type, email, phone, website, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url, onboarding_completed_at',
         )
         .eq('id', companyId)
         .maybeSingle(),
@@ -97,13 +97,12 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
   if (!settings) throw new Error('Company settings not found.')
 
   const role = profile.role as ProfileRole
-  const companyEmail = company.email ?? ''
 
   return {
     companyId: company.id,
     name: company.name ?? '',
     businessType: company.business_type ?? '',
-    email: companyEmail,
+    email: company.email ?? '',
     phone: company.phone ?? '',
     website: company.website ?? '',
     taxId: company.tax_id ?? '',
@@ -114,9 +113,6 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
     postalCode: company.postal_code ?? '',
     country: company.country ?? '',
     logoUrl: company.logo_url,
-    senderName: company.sender_name ?? company.name ?? '',
-    senderEmail: company.sender_email ?? companyEmail,
-    replyTo: company.reply_to ?? companyEmail,
     primaryColor: settings.primary_color ?? '#1a73f5',
     invoiceFooter: settings.invoice_footer ?? '',
     currency: settings.default_currency ?? 'USD',
@@ -140,18 +136,10 @@ export async function updateCompanySettings(
   const currency = normalizeCurrency(input.currency)
   const timezone = normalizeTimezone(input.timezone)
   const invoicePrefix = normalizeInvoicePrefix(input.invoicePrefix)
-  const senderEmail = normalizeOptionalEmail(input.senderEmail, 'sender email')
-  const replyTo = normalizeOptionalEmail(input.replyTo, 'reply-to email')
   const companyEmail = normalizeOptionalEmail(input.email, 'company email')
 
   if (!input.name.trim()) {
     throw new Error('Company name is required.')
-  }
-  if (!input.senderName.trim()) {
-    throw new Error('Sender name is required.')
-  }
-  if (!senderEmail) {
-    throw new Error('Sender email is required for invoice delivery.')
   }
 
   const [{ error: companyError }, { error: settingsError }] = await Promise.all([
@@ -171,9 +159,6 @@ export async function updateCompanySettings(
         postal_code: emptyToNull(input.postalCode),
         country: emptyToNull(input.country),
         logo_url: input.logoUrl,
-        sender_name: input.senderName.trim(),
-        sender_email: senderEmail,
-        reply_to: emptyToNull(replyTo),
       })
       .eq('id', companyId),
     supabase
