@@ -30,7 +30,7 @@ export function DashboardPage() {
             <Link to={paths.invoiceNew}>
               <Button>
                 <Plus className="h-4 w-4" />
-                New invoice
+                Create bill
               </Button>
             </Link>
           </>

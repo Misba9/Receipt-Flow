@@ -48,7 +48,7 @@ export function InvoicesPage() {
             <ExportButton label="Export Excel" onExport={exportInvoicesExcel} />
             <Button type="button" onClick={() => navigate(paths.invoiceNew)}>
               <Plus className="h-4 w-4" />
-              New invoice
+              Create bill
             </Button>
           </>
         }

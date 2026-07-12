@@ -77,6 +77,18 @@ export type InvoiceInput = {
   items: InvoiceItemInput[]
 }
 
+/** Create-mode payload: customer is created with the invoice in one submit. */
+export type CreateBillInput = {
+  customer: {
+    name: string
+    phone: string
+    email: string
+    address: string
+    notes: string
+  }
+  invoice: Omit<InvoiceInput, 'customer_id'>
+}
+
 export type InvoicesListParams = {
   search?: string
   status?: InvoiceStatus | 'all'

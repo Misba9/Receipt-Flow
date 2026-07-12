@@ -9,7 +9,7 @@ import {
 } from '@/services/invoices/calculations'
 import { deliverNewInvoice } from '@/services/invoices/deliver'
 import {
-  useCreateInvoice,
+  useCreateBill,
   useInvoiceCustomerOptions,
   useUpdateInvoice,
 } from '@/services/invoices/hooks'
@@ -24,7 +24,14 @@ import { useCompanySettings } from '@/services/settings/hooks'
 import { formatCurrency } from '@/lib/format'
 import { paths } from '@/lib/paths'
 
+const EMAIL_PATTERN = /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 type InvoiceFormValues = {
+  customer_name: string
+  customer_phone: string
+  customer_email: string
+  customer_address: string
+  customer_notes: string
   invoice_number: string
   customer_id: string
   issue_date: string
@@ -59,6 +66,11 @@ function buildDefaultValues(
 ): InvoiceFormValues {
   if (invoice) {
     return {
+      customer_name: invoice.customer?.name ?? '',
+      customer_phone: invoice.customer?.phone ?? '',
+      customer_email: invoice.customer?.email ?? '',
+      customer_address: invoice.customer?.address_line1 ?? '',
+      customer_notes: '',
       invoice_number: invoice.invoice_number,
       customer_id: invoice.customer_id,
       issue_date: invoice.issue_date,
@@ -78,6 +90,11 @@ function buildDefaultValues(
   }
 
   return {
+    customer_name: '',
+    customer_phone: '',
+    customer_email: '',
+    customer_address: '',
+    customer_notes: '',
     invoice_number: defaults?.invoice_number ?? '',
     customer_id: '',
     issue_date: todayIso(),
@@ -92,7 +109,7 @@ function buildDefaultValues(
 export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
   const isEdit = Boolean(invoice)
   const navigate = useNavigate()
-  const createInvoice = useCreateInvoice()
+  const createBill = useCreateBill()
   const updateInvoice = useUpdateInvoice()
   const { data: customers = [], isLoading: customersLoading } =
     useInvoiceCustomerOptions()
@@ -135,36 +152,56 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
 
   const currency = invoice?.currency ?? defaults?.currency ?? 'USD'
   const submitting =
-    isSubmitting || createInvoice.isPending || updateInvoice.isPending
+    isSubmitting || createBill.isPending || updateInvoice.isPending
 
   const onSubmit = handleSubmit(async (values) => {
     setError(null)
     setStatusMessage(null)
 
-    const payload: InvoiceInput = {
-      invoice_number: values.invoice_number.trim(),
-      customer_id: values.customer_id,
-      issue_date: values.issue_date,
-      status: values.status,
-      discount_amount: Number(values.discount_amount) || 0,
-      tax_rate: Number(values.tax_rate) || 0,
-      notes: values.notes.trim(),
-      items: values.items.map((item) => ({
-        description: item.description.trim(),
-        quantity: Number(item.quantity),
-        unit_price: Number(item.unit_price),
-      })),
-    }
-
     try {
       if (invoice) {
+        const payload: InvoiceInput = {
+          invoice_number: values.invoice_number.trim(),
+          customer_id: values.customer_id,
+          issue_date: values.issue_date,
+          status: values.status,
+          discount_amount: Number(values.discount_amount) || 0,
+          tax_rate: Number(values.tax_rate) || 0,
+          notes: values.notes.trim(),
+          items: values.items.map((item) => ({
+            description: item.description.trim(),
+            quantity: Number(item.quantity),
+            unit_price: Number(item.unit_price),
+          })),
+        }
         await updateInvoice.mutateAsync({ id: invoice.id, input: payload })
         navigate(paths.invoiceDetail(invoice.id))
         return
       }
 
-      setStatusMessage('Creating invoice…')
-      const id = await createInvoice.mutateAsync(payload)
+      setStatusMessage('Saving customer and invoice…')
+      const id = await createBill.mutateAsync({
+        customer: {
+          name: values.customer_name.trim(),
+          phone: values.customer_phone.trim(),
+          email: values.customer_email.trim(),
+          address: values.customer_address.trim(),
+          notes: values.customer_notes.trim(),
+        },
+        invoice: {
+          invoice_number: values.invoice_number.trim(),
+          issue_date: values.issue_date,
+          status: values.status,
+          discount_amount: Number(values.discount_amount) || 0,
+          tax_rate: Number(values.tax_rate) || 0,
+          notes: values.notes.trim(),
+          items: values.items.map((item) => ({
+            description: item.description.trim(),
+            quantity: Number(item.quantity),
+            unit_price: Number(item.unit_price),
+          })),
+        },
+      })
 
       if (!company) {
         navigate(paths.invoiceDetail(id), {
@@ -172,7 +209,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             delivery: {
               status: 'failed',
               message:
-                'Invoice created, but company settings were unavailable for PDF/email.',
+                'Bill created, but company settings were unavailable for PDF/email.',
             },
           },
         })
@@ -187,11 +224,11 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
       })
     } catch (err) {
       setStatusMessage(null)
-      setError(err instanceof Error ? err.message : 'Unable to save invoice.')
+      setError(err instanceof Error ? err.message : 'Unable to create bill.')
     }
   })
 
-  if (customersLoading) {
+  if (isEdit && customersLoading) {
     return (
       <Card className="flex items-center justify-center gap-3 py-16">
         <Spinner className="h-6 w-6" />
@@ -205,16 +242,91 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
       {error ? <Alert>{error}</Alert> : null}
       {statusMessage ? <Alert variant="info">{statusMessage}</Alert> : null}
 
-      {customers.length === 0 ? (
-        <Alert variant="info">
-          Add a customer before creating an invoice.{' '}
-          <Link to={paths.customers} className="font-medium underline">
-            Go to customers
-          </Link>
-        </Alert>
+      {!isEdit ? (
+        <Card className="space-y-4">
+          <div>
+            <h3 className="font-semibold text-surface-900 dark:text-surface-50">
+              Customer details
+            </h3>
+            <p className="text-sm text-surface-500">
+              Saved to Customers when you create the bill.
+            </p>
+          </div>
+
+          <Input
+            label="Name"
+            placeholder="Customer name"
+            autoComplete="name"
+            disabled={submitting}
+            error={errors.customer_name?.message}
+            {...register('customer_name', {
+              required: 'Customer name is required',
+              minLength: { value: 2, message: 'Enter at least 2 characters' },
+              maxLength: { value: 120, message: 'Name is too long' },
+            })}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Phone"
+              type="tel"
+              placeholder="+1 555 0100"
+              autoComplete="tel"
+              disabled={submitting}
+              error={errors.customer_phone?.message}
+              {...register('customer_phone', {
+                maxLength: { value: 40, message: 'Phone is too long' },
+              })}
+            />
+            <Input
+              label="Email"
+              type="email"
+              placeholder="customer@email.com"
+              autoComplete="email"
+              disabled={submitting}
+              error={errors.customer_email?.message}
+              {...register('customer_email', {
+                pattern: {
+                  value: EMAIL_PATTERN,
+                  message: 'Enter a valid email address',
+                },
+                maxLength: { value: 160, message: 'Email is too long' },
+              })}
+            />
+          </div>
+
+          <Textarea
+            label="Address"
+            placeholder="Street, city, state, postal code"
+            disabled={submitting}
+            error={errors.customer_address?.message}
+            className="min-h-20"
+            {...register('customer_address', {
+              maxLength: { value: 500, message: 'Address is too long' },
+            })}
+          />
+
+          <Textarea
+            label="Customer notes"
+            placeholder="Internal notes about this customer"
+            disabled={submitting}
+            error={errors.customer_notes?.message}
+            {...register('customer_notes', {
+              maxLength: { value: 2000, message: 'Notes are too long' },
+            })}
+          />
+        </Card>
       ) : null}
 
       <Card>
+        <div className="mb-4">
+          <h3 className="font-semibold text-surface-900 dark:text-surface-50">
+            Invoice details
+          </h3>
+          <p className="text-sm text-surface-500">
+            Number, date, status, and totals for this bill.
+          </p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Input
             label="Invoice number"
@@ -224,17 +336,19 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               required: 'Invoice number is required',
             })}
           />
-          <Select
-            label="Customer"
-            placeholder="Select customer"
-            disabled={submitting || customers.length === 0}
-            error={errors.customer_id?.message}
-            options={customers.map((customer) => ({
-              value: customer.id,
-              label: customer.name,
-            }))}
-            {...register('customer_id', { required: 'Customer is required' })}
-          />
+          {isEdit ? (
+            <Select
+              label="Customer"
+              placeholder="Select customer"
+              disabled={submitting || customers.length === 0}
+              error={errors.customer_id?.message}
+              options={customers.map((customer) => ({
+                value: customer.id,
+                label: customer.name,
+              }))}
+              {...register('customer_id', { required: 'Customer is required' })}
+            />
+          ) : null}
           <Input
             label="Date"
             type="date"
@@ -384,7 +498,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             />
           </div>
           <Textarea
-            label="Notes"
+            label="Invoice notes"
             placeholder="Optional notes for this invoice"
             disabled={submitting}
             {...register('notes')}
@@ -435,7 +549,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             Cancel
           </Button>
         </Link>
-        <Button type="submit" disabled={submitting || customers.length === 0}>
+        <Button type="submit" disabled={submitting}>
           {submitting ? (
             <Spinner className="h-4 w-4 border-white/30 border-t-white" />
           ) : null}
@@ -444,10 +558,10 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               ? 'Saving…'
               : statusMessage?.includes('email')
                 ? 'Sending…'
-                : 'Creating…'
+                : 'Creating bill…'
             : isEdit
               ? 'Save changes'
-              : 'Create & email invoice'}
+              : 'Create bill'}
         </Button>
       </div>
     </form>

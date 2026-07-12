@@ -26,9 +26,12 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
     .from('profiles')
     .select('company_id, role')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (profileError) throw profileError
+  if (!profile?.company_id) {
+    throw new Error('Your account is not linked to a company.')
+  }
 
   const companyId = String(profile.company_id)
 

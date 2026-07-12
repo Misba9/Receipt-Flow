@@ -22,11 +22,23 @@ export async function requireTenantContext(): Promise<TenantContext> {
     .from('profiles')
     .select('company_id')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (profileError) throw profileError
   if (!profile?.company_id) {
-    throw new Error('Your account is not linked to a company.')
+    const { data: ensured, error: ensureError } = await supabase.rpc(
+      'ensure_user_workspace',
+    )
+    if (ensureError) throw ensureError
+    const companyId =
+      ensured && typeof ensured === 'object'
+        ? String((ensured as { company_id?: string }).company_id ?? '')
+        : ''
+    if (!companyId) throw new Error('Your account is not linked to a company.')
+    return {
+      userId: user.id,
+      companyId,
+    }
   }
 
   return {

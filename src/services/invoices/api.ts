@@ -1,7 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import { requireTenantContext } from '@/lib/tenant'
+import { createCustomer } from '@/services/customers/api'
 import { calculateInvoiceTotals, lineAmount } from '@/services/invoices/calculations'
 import type {
+  CreateBillInput,
   InvoiceDefaults,
   InvoiceDetail,
   InvoiceInput,
@@ -318,6 +320,15 @@ export async function createInvoice(input: InvoiceInput): Promise<string> {
   }
 
   return data.id as string
+}
+
+/** Saves customer + invoice together for the create-bill flow. */
+export async function createBill(input: CreateBillInput): Promise<string> {
+  const customer = await createCustomer(input.customer)
+  return createInvoice({
+    ...input.invoice,
+    customer_id: customer.id,
+  })
 }
 
 export async function updateInvoice(

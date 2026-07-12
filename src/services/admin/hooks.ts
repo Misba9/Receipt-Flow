@@ -27,6 +27,8 @@ export function useSessionAccess() {
     queryFn: fetchSessionAccess,
     enabled: isAuthenticated && !authLoading,
     staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   })
 }
 

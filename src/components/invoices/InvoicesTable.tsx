@@ -46,7 +46,7 @@ export function InvoicesTable({
         action={
           !search ? (
             <Button type="button" onClick={onCreate}>
-              New invoice
+              Create bill
             </Button>
           ) : null
         }

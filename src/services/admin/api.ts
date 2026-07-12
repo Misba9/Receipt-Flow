@@ -11,6 +11,20 @@ function asNumber(value: unknown) {
   return Number(value ?? 0)
 }
 
+function emptyAccess(): SessionAccess {
+  return {
+    isSuperAdmin: false,
+    companyActive: false,
+    companyId: null,
+    fullName: null,
+  }
+}
+
+/**
+ * Resolves workspace access for the signed-in user.
+ * Bootstraps a company/profile when the auth user has no profile row yet
+ * (avoids PostgREST 406 from .single() on zero rows).
+ */
 export async function fetchSessionAccess(): Promise<SessionAccess> {
   const {
     data: { user },
@@ -18,22 +32,36 @@ export async function fetchSessionAccess(): Promise<SessionAccess> {
   } = await supabase.auth.getUser()
 
   if (userError) throw userError
-  if (!user) {
+  if (!user) return emptyAccess()
+
+  const { data: ensured, error: ensureError } = await supabase.rpc(
+    'ensure_user_workspace',
+  )
+
+  if (!ensureError && ensured && typeof ensured === 'object') {
+    const row = ensured as Record<string, unknown>
     return {
-      isSuperAdmin: false,
-      companyActive: false,
-      companyId: null,
-      fullName: null,
+      isSuperAdmin: Boolean(row.is_super_admin),
+      companyActive: Boolean(row.company_active),
+      companyId: row.company_id ? String(row.company_id) : null,
+      fullName: (row.full_name as string | null) ?? null,
     }
   }
 
+  // Fallback if RPC is not deployed yet
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('company_id, full_name, is_super_admin')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (profileError) throw profileError
+  if (!profile?.company_id) {
+    throw new Error(
+      ensureError?.message ||
+        'Your workspace is not set up yet. Sign out and register again, or contact support.',
+    )
+  }
 
   const { data: companyActive, error: activeError } = await supabase.rpc(
     'is_current_company_active',
@@ -43,7 +71,7 @@ export async function fetchSessionAccess(): Promise<SessionAccess> {
   return {
     isSuperAdmin: Boolean(profile.is_super_admin),
     companyActive: Boolean(companyActive),
-    companyId: profile.company_id ? String(profile.company_id) : null,
+    companyId: String(profile.company_id),
     fullName: profile.full_name ?? null,
   }
 }

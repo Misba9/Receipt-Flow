@@ -3,6 +3,7 @@ export {
   useInvoice,
   useInvoiceDefaults,
   useInvoiceCustomerOptions,
+  useCreateBill,
   useCreateInvoice,
   useUpdateInvoice,
   useDeleteInvoice,
@@ -13,6 +14,7 @@ export type {
   InvoiceDetail,
   InvoiceListItem,
   InvoiceInput,
+  CreateBillInput,
   InvoiceItem,
 } from '@/services/invoices/types'
 export { calculateInvoiceTotals, lineAmount } from '@/services/invoices/calculations'

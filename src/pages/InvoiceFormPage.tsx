@@ -12,8 +12,8 @@ export function InvoiceCreatePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="New invoice"
-        description="Create an invoice with products, tax, and discount."
+        title="Create bill"
+        description="Enter customer and invoice details, then save both at once."
         actions={
           <Link to={paths.invoices}>
             <Button variant="secondary">Back to invoices</Button>

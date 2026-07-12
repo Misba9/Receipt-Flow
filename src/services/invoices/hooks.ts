@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  createBill,
   createInvoice,
   deleteInvoice,
   fetchCustomerOptions,
@@ -8,7 +9,12 @@ import {
   fetchInvoices,
   updateInvoice,
 } from '@/services/invoices/api'
-import type { InvoiceInput, InvoicesListParams } from '@/services/invoices/types'
+import type {
+  CreateBillInput,
+  InvoiceInput,
+  InvoicesListParams,
+} from '@/services/invoices/types'
+import { customerKeys } from '@/services/customers/hooks'
 import { dashboardKeys } from '@/services/dashboard/hooks'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -76,6 +82,19 @@ export function useCreateInvoice() {
   return useMutation({
     mutationFn: (input: InvoiceInput) => createInvoice(input),
     onSuccess: () => invalidateInvoiceQueries(queryClient),
+  })
+}
+
+export function useCreateBill() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: CreateBillInput) => createBill(input),
+    onSuccess: () =>
+      Promise.all([
+        invalidateInvoiceQueries(queryClient),
+        queryClient.invalidateQueries({ queryKey: customerKeys.all }),
+      ]),
   })
 }
 

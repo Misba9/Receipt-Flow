@@ -20,7 +20,7 @@ function getPageTitle(pathname: string) {
   if (pathname === paths.admin) return 'Super Admin'
   if (pathname === paths.adminCompanies) return 'Companies'
   if (pathname === paths.adminUsers) return 'Users'
-  if (pathname === paths.invoiceNew) return 'New invoice'
+  if (pathname === paths.invoiceNew) return 'Create bill'
   if (pathname.startsWith('/invoices/') && pathname.endsWith('/edit')) {
     return 'Edit invoice'
   }
