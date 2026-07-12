@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/utils'
 
 type AlertProps = {
   variant?: 'error' | 'success' | 'info'
   children: ReactNode
   className?: string
+  role?: HTMLAttributes<HTMLDivElement>['role']
 }
 
 const variantStyles = {
@@ -15,12 +16,17 @@ const variantStyles = {
   info: 'border-brand-200 bg-brand-50 text-brand-800 dark:border-brand-900 dark:bg-brand-950/50 dark:text-brand-200',
 }
 
-export function Alert({ variant = 'error', children, className }: AlertProps) {
+export function Alert({
+  variant = 'error',
+  children,
+  className,
+  role = 'alert',
+}: AlertProps) {
   return (
     <div
-      role="alert"
+      role={role}
       className={cn(
-        'rounded-lg border px-3 py-2 text-sm',
+        'rounded-xl border px-3.5 py-2.5 text-sm leading-relaxed',
         variantStyles[variant],
         className,
       )}

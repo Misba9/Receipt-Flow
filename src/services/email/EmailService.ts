@@ -3,11 +3,11 @@ import {
   buildInvoiceEmailHtml,
   buildInvoiceEmailSubject,
 } from '@/services/email/invoiceEmailTemplate'
+import { getInvoiceEmailTransport } from '@/services/email/platformResendTransport'
 import type {
   EmailSendSuccess,
   InvoiceEmailPreview,
 } from '@/services/email/types'
-import { invokeSendInvoiceEmail } from '@/services/invoices/email'
 import type { InvoiceDetail } from '@/services/invoices/types'
 import type { CompanySettings } from '@/services/settings/types'
 
@@ -29,18 +29,13 @@ function requireCustomerEmail(invoice: InvoiceDetail): string {
 }
 
 /**
- * Single entry point for invoice email delivery.
- * Switch modes with `VITE_EMAIL_MODE` / `VITE_APP_ENV` only.
+ * Single frontend entry point for invoice email.
+ * Transport is swappable (platform Resend today; custom domains later).
  */
 export const EmailService = {
   getMode: getEmailMode,
   isDevelopmentMode: isEmailDevelopmentMode,
 
-  /**
-   * Sends (or simulates) an invoice email.
-   * Development: no Edge Function / Resend call.
-   * Production: invokes `send-invoice-email` Edge Function.
-   */
   async sendInvoiceEmail(invoiceId: string): Promise<EmailSendSuccess> {
     const mode = getEmailMode()
 
@@ -52,7 +47,8 @@ export const EmailService = {
       }
     }
 
-    const result = await invokeSendInvoiceEmail(invoiceId)
+    const transport = getInvoiceEmailTransport()
+    const result = await transport.sendInvoiceEmail({ invoiceId })
 
     return {
       success: true,
@@ -64,15 +60,17 @@ export const EmailService = {
     }
   },
 
-  /** Builds a local preview without sending. */
   previewInvoiceEmail(
     invoice: InvoiceDetail,
     company: CompanySettings,
   ): InvoiceEmailPreview {
     const recipient = requireCustomerEmail(invoice)
-    const companyName = company.name || 'Company'
-    const subject = buildInvoiceEmailSubject(companyName)
+    const companyName = company.name.trim()
+    if (!companyName) {
+      throw new Error('Company name is required before previewing email.')
+    }
 
+    const subject = buildInvoiceEmailSubject(companyName)
     const html = buildInvoiceEmailHtml({
       companyName,
       companyEmail: company.email || null,
@@ -88,7 +86,7 @@ export const EmailService = {
       taxRate: invoice.tax_rate,
       taxAmount: invoice.tax_amount,
       total: invoice.total,
-      brandColor: company.primaryColor || '#1a73f5',
+      brandColor: company.primaryColor,
       appUrl: appUrl(),
     })
 
@@ -97,6 +95,8 @@ export const EmailService = {
       recipient,
       html,
       attachmentName: `${invoice.invoice_number}.pdf`,
+      from: `${company.senderName} <${company.senderEmail}>`,
+      replyTo: company.replyTo || company.email || undefined,
     }
   },
 } as const

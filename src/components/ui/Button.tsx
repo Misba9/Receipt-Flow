@@ -23,8 +23,8 @@ const variantStyles: Record<ButtonVariant, string> = {
 
 const sizeStyles: Record<ButtonSize, string> = {
   sm: 'h-8 px-3 text-sm',
-  md: 'h-10 px-4 text-sm',
-  lg: 'h-11 px-5 text-base',
+  md: 'h-11 px-4 text-sm',
+  lg: 'h-12 px-5 text-base',
 }
 
 export function Button({
@@ -39,9 +39,11 @@ export function Button({
     <button
       type={type}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors',
+        'inline-flex items-center justify-center gap-2 rounded-xl font-medium',
+        'transition-[color,background-color,box-shadow,transform] duration-200',
+        'hover:-translate-y-px active:translate-y-0',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-        'disabled:pointer-events-none disabled:opacity-50',
+        'disabled:pointer-events-none disabled:opacity-50 disabled:hover:translate-y-0',
         'dark:focus-visible:ring-offset-surface-950',
         variantStyles[variant],
         sizeStyles[size],

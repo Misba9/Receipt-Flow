@@ -6,6 +6,7 @@ export type SendInvoiceEmailResult = {
   id: string | null
   to: string
   subject: string
+  from?: string
 }
 
 async function messageFromFunctionsError(error: unknown): Promise<string> {

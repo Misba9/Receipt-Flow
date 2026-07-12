@@ -35,12 +35,20 @@ function normalizeInvoicePrefix(value: string) {
 function normalizeTimezone(value: string) {
   const timezone = value.trim() || 'UTC'
   try {
-    // Throws RangeError for invalid IANA zones in modern runtimes
     Intl.DateTimeFormat(undefined, { timeZone: timezone })
   } catch {
     throw new Error('Enter a valid timezone (e.g. Asia/Kolkata).')
   }
   return timezone
+}
+
+function normalizeOptionalEmail(value: string, label: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    throw new Error(`Enter a valid ${label}.`)
+  }
+  return trimmed.toLowerCase()
 }
 
 export async function fetchCompanySettings(): Promise<CompanySettings> {
@@ -70,7 +78,7 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
       supabase
         .from('companies')
         .select(
-          'id, name, email, phone, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url',
+          'id, name, business_type, email, phone, website, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url, sender_name, sender_email, reply_to, onboarding_completed_at',
         )
         .eq('id', companyId)
         .maybeSingle(),
@@ -89,12 +97,15 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
   if (!settings) throw new Error('Company settings not found.')
 
   const role = profile.role as ProfileRole
+  const companyEmail = company.email ?? ''
 
   return {
     companyId: company.id,
     name: company.name ?? '',
-    email: company.email ?? '',
+    businessType: company.business_type ?? '',
+    email: companyEmail,
     phone: company.phone ?? '',
+    website: company.website ?? '',
     taxId: company.tax_id ?? '',
     addressLine1: company.address_line1 ?? '',
     addressLine2: company.address_line2 ?? '',
@@ -103,19 +114,23 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
     postalCode: company.postal_code ?? '',
     country: company.country ?? '',
     logoUrl: company.logo_url,
+    senderName: company.sender_name ?? company.name ?? '',
+    senderEmail: company.sender_email ?? companyEmail,
+    replyTo: company.reply_to ?? companyEmail,
     primaryColor: settings.primary_color ?? '#1a73f5',
     invoiceFooter: settings.invoice_footer ?? '',
     currency: settings.default_currency ?? 'USD',
     timezone: settings.timezone ?? 'UTC',
     invoicePrefix: settings.invoice_prefix ?? 'INV-',
+    onboardingCompletedAt: company.onboarding_completed_at ?? null,
     role,
     canEdit: role === 'owner' || role === 'admin',
   }
 }
 
 /**
- * Updates the signed-in user's company only.
- * Company id is resolved server-side via RLS / tenant context — never from the client payload.
+ * Updates the signed-in user's company only (RLS + tenant context).
+ * Never accepts a client-supplied company id or Resend API keys.
  */
 export async function updateCompanySettings(
   input: CompanySettingsInput,
@@ -125,14 +140,29 @@ export async function updateCompanySettings(
   const currency = normalizeCurrency(input.currency)
   const timezone = normalizeTimezone(input.timezone)
   const invoicePrefix = normalizeInvoicePrefix(input.invoicePrefix)
+  const senderEmail = normalizeOptionalEmail(input.senderEmail, 'sender email')
+  const replyTo = normalizeOptionalEmail(input.replyTo, 'reply-to email')
+  const companyEmail = normalizeOptionalEmail(input.email, 'company email')
+
+  if (!input.name.trim()) {
+    throw new Error('Company name is required.')
+  }
+  if (!input.senderName.trim()) {
+    throw new Error('Sender name is required.')
+  }
+  if (!senderEmail) {
+    throw new Error('Sender email is required for invoice delivery.')
+  }
 
   const [{ error: companyError }, { error: settingsError }] = await Promise.all([
     supabase
       .from('companies')
       .update({
         name: input.name.trim(),
-        email: emptyToNull(input.email),
+        business_type: emptyToNull(input.businessType),
+        email: emptyToNull(companyEmail),
         phone: emptyToNull(input.phone),
+        website: emptyToNull(input.website),
         tax_id: emptyToNull(input.taxId),
         address_line1: emptyToNull(input.addressLine1),
         address_line2: emptyToNull(input.addressLine2),
@@ -141,6 +171,9 @@ export async function updateCompanySettings(
         postal_code: emptyToNull(input.postalCode),
         country: emptyToNull(input.country),
         logo_url: input.logoUrl,
+        sender_name: input.senderName.trim(),
+        sender_email: senderEmail,
+        reply_to: emptyToNull(replyTo),
       })
       .eq('id', companyId),
     supabase
@@ -157,6 +190,17 @@ export async function updateCompanySettings(
 
   if (companyError) throw companyError
   if (settingsError) throw settingsError
+}
+
+/** Marks workspace onboarding as finished for the current company. */
+export async function markOnboardingComplete(): Promise<void> {
+  const companyId = await getCurrentCompanyId()
+  const { error } = await supabase
+    .from('companies')
+    .update({ onboarding_completed_at: new Date().toISOString() })
+    .eq('id', companyId)
+
+  if (error) throw error
 }
 
 export async function uploadCompanyLogo(file: File): Promise<string> {

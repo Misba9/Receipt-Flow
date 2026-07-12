@@ -14,6 +14,8 @@ export type InvoiceEmailPreview = {
   recipient: string
   html: string
   attachmentName: string
+  from?: string
+  replyTo?: string
 }
 
 export type BuildInvoiceEmailInput = {

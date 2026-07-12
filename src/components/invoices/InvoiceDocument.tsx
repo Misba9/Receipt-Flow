@@ -31,6 +31,7 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
               <div className="mt-1 space-y-0.5 text-sm text-surface-500">
                 {company?.email ? <p>{company.email}</p> : null}
                 {company?.phone ? <p>{company.phone}</p> : null}
+                {company?.website ? <p>{company.website}</p> : null}
                 {company?.addressLine1 ? <p>{company.addressLine1}</p> : null}
                 {company?.addressLine2 ? <p>{company.addressLine2}</p> : null}
                 {[company?.city, company?.state, company?.postalCode]

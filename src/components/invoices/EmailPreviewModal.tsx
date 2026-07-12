@@ -27,6 +27,26 @@ export function EmailPreviewModal({
       ) : (
         <div className="space-y-4">
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            {preview.from ? (
+              <div className="rounded-lg border border-surface-200 p-3 dark:border-surface-800">
+                <dt className="text-xs font-medium uppercase tracking-wide text-surface-500">
+                  From
+                </dt>
+                <dd className="mt-1 font-medium text-surface-900 dark:text-surface-50">
+                  {preview.from}
+                </dd>
+              </div>
+            ) : null}
+            {preview.replyTo ? (
+              <div className="rounded-lg border border-surface-200 p-3 dark:border-surface-800">
+                <dt className="text-xs font-medium uppercase tracking-wide text-surface-500">
+                  Reply-to
+                </dt>
+                <dd className="mt-1 font-medium text-surface-900 dark:text-surface-50">
+                  {preview.replyTo}
+                </dd>
+              </div>
+            ) : null}
             <div className="rounded-lg border border-surface-200 p-3 dark:border-surface-800">
               <dt className="text-xs font-medium uppercase tracking-wide text-surface-500">
                 Subject

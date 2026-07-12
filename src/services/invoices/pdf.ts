@@ -296,6 +296,7 @@ export async function generateInvoicePdf(
     ...companyAddressLines(company),
     company.phone ? `Phone: ${company.phone}` : '',
     company.email ? `Email: ${company.email}` : '',
+    company.website ? `Web: ${company.website}` : '',
     company.taxId ? `GST / Tax ID: ${company.taxId}` : '',
   ].filter(Boolean)
 

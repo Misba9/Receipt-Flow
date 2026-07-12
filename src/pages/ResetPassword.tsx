@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { AuthLayout } from '@/layouts/AuthLayout'
-import { Alert, Button, Input, Spinner } from '@/components/ui'
+import { Alert, Button, PasswordInput, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { paths } from '@/lib/paths'
+import { validateStrongPassword } from '@/services/onboarding'
 
 type ResetPasswordFormValues = {
   password: string
@@ -27,6 +28,7 @@ export function ResetPassword() {
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordFormValues>({
     defaultValues: { password: '', confirmPassword: '' },
+    mode: 'onBlur',
   })
 
   const onSubmit = handleSubmit(async ({ password: pwd }) => {
@@ -47,7 +49,7 @@ export function ResetPassword() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-50 dark:bg-surface-950">
+      <div className="flex min-h-dvh items-center justify-center bg-surface-50 dark:bg-surface-950">
         <Spinner className="h-8 w-8" />
       </div>
     )
@@ -61,13 +63,13 @@ export function ResetPassword() {
         footer={
           <Link
             to={paths.forgotPassword}
-            className="font-medium text-brand-600 hover:underline dark:text-brand-400"
+            className="font-medium text-brand-600 transition-colors hover:text-brand-700 hover:underline dark:text-brand-400"
           >
             Request another link
           </Link>
         }
       >
-        <Alert>
+        <Alert role="alert">
           This reset link is invalid or has expired. Please try again.
         </Alert>
       </AuthLayout>
@@ -81,36 +83,37 @@ export function ResetPassword() {
       footer={
         <Link
           to={paths.login}
-          className="font-medium text-brand-600 hover:underline dark:text-brand-400"
+          className="font-medium text-brand-600 transition-colors hover:text-brand-700 hover:underline dark:text-brand-400"
         >
           Back to sign in
         </Link>
       }
     >
-      <form className="space-y-4" onSubmit={onSubmit} noValidate>
-        {formError ? <Alert>{formError}</Alert> : null}
-        {successMessage ? <Alert variant="success">{successMessage}</Alert> : null}
+      <form className="space-y-5" onSubmit={onSubmit} noValidate>
+        {formError ? <Alert role="alert">{formError}</Alert> : null}
+        {successMessage ? (
+          <Alert variant="success" role="status">
+            {successMessage}
+          </Alert>
+        ) : null}
 
-        <Input
+        <PasswordInput
           label="New password"
-          type="password"
           autoComplete="new-password"
-          placeholder="••••••••"
+          placeholder="At least 8 characters"
+          disabled={isSubmitting}
           error={errors.password?.message}
           {...register('password', {
             required: 'Password is required',
-            minLength: {
-              value: 8,
-              message: 'Password must be at least 8 characters',
-            },
+            validate: validateStrongPassword,
           })}
         />
 
-        <Input
+        <PasswordInput
           label="Confirm password"
-          type="password"
           autoComplete="new-password"
-          placeholder="••••••••"
+          placeholder="Re-enter your password"
+          disabled={isSubmitting}
           error={errors.confirmPassword?.message}
           {...register('confirmPassword', {
             required: 'Please confirm your password',
@@ -119,8 +122,16 @@ export function ResetPassword() {
           })}
         />
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? <Spinner className="h-4 w-4 border-white/30 border-t-white" /> : null}
+        <Button
+          type="submit"
+          className="w-full"
+          size="lg"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+        >
+          {isSubmitting ? (
+            <Spinner className="h-4 w-4 border-white/30 border-t-white" />
+          ) : null}
           {isSubmitting ? 'Updating…' : 'Update password'}
         </Button>
       </form>

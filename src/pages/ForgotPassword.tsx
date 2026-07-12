@@ -21,6 +21,7 @@ export function ForgotPassword() {
     formState: { errors, isSubmitting },
   } = useForm<ForgotPasswordFormValues>({
     defaultValues: { email: '' },
+    mode: 'onBlur',
   })
 
   const onSubmit = handleSubmit(async ({ email }) => {
@@ -45,21 +46,27 @@ export function ForgotPassword() {
       footer={
         <Link
           to={paths.login}
-          className="font-medium text-brand-600 hover:underline dark:text-brand-400"
+          className="font-medium text-brand-600 transition-colors hover:text-brand-700 hover:underline dark:text-brand-400"
         >
           Back to sign in
         </Link>
       }
     >
-      <form className="space-y-4" onSubmit={onSubmit} noValidate>
-        {formError ? <Alert>{formError}</Alert> : null}
-        {successMessage ? <Alert variant="success">{successMessage}</Alert> : null}
+      <form className="space-y-5" onSubmit={onSubmit} noValidate>
+        {formError ? <Alert role="alert">{formError}</Alert> : null}
+        {successMessage ? (
+          <Alert variant="success" role="status">
+            {successMessage}
+          </Alert>
+        ) : null}
 
         <Input
           label="Email"
           type="email"
           autoComplete="email"
-          placeholder="you@example.com"
+          inputMode="email"
+          placeholder="you@company.com"
+          disabled={isSubmitting}
           error={errors.email?.message}
           {...register('email', {
             required: 'Email is required',
@@ -70,8 +77,16 @@ export function ForgotPassword() {
           })}
         />
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? <Spinner className="h-4 w-4 border-white/30 border-t-white" /> : null}
+        <Button
+          type="submit"
+          className="w-full"
+          size="lg"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+        >
+          {isSubmitting ? (
+            <Spinner className="h-4 w-4 border-white/30 border-t-white" />
+          ) : null}
           {isSubmitting ? 'Sending…' : 'Send reset link'}
         </Button>
       </form>

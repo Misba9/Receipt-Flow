@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { CompanyActiveGate } from '@/components/CompanyActiveGate'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { GuestRoute } from '@/components/GuestRoute'
+import { OnboardingGate } from '@/components/OnboardingGate'
 import { PageLoader } from '@/components/PageLoader'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { SuperAdminRoute } from '@/components/SuperAdminRoute'
@@ -48,6 +49,9 @@ const ReportsPage = lazy(() =>
 )
 const SettingsPage = lazy(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+)
+const OnboardingPage = lazy(() =>
+  import('@/pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })),
 )
 const AdminDashboardPage = lazy(() =>
   import('@/pages/AdminDashboardPage').then((m) => ({
@@ -99,6 +103,15 @@ export function AppRoutes() {
       </Route>
 
       <Route
+        path={paths.onboarding}
+        element={
+          <LazyRoute>
+            <OnboardingPage />
+          </LazyRoute>
+        }
+      />
+
+      <Route
         path={paths.resetPassword}
         element={
           <LazyRoute>
@@ -118,7 +131,8 @@ export function AppRoutes() {
         />
 
         <Route element={<CompanyActiveGate />}>
-          <Route element={<AppShell />}>
+          <Route element={<OnboardingGate />}>
+            <Route element={<AppShell />}>
             <Route
               path={paths.dashboard}
               element={
@@ -209,6 +223,7 @@ export function AppRoutes() {
                   </LazyRoute>
                 }
               />
+            </Route>
             </Route>
           </Route>
         </Route>

@@ -10,6 +10,7 @@ export const paths = {
   reports: '/reports',
   receipts: '/receipts',
   settings: '/settings',
+  onboarding: '/onboarding',
   admin: '/admin',
   adminCompanies: '/admin/companies',
   adminUsers: '/admin/users',

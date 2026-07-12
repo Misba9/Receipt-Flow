@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   DashboardStatsGrid,
   LatestCustomers,
+  ProfileCompletionCard,
   RecentInvoices,
 } from '@/components/dashboard'
 import { ExportButton } from '@/components/exports/ExportButton'
@@ -36,6 +37,8 @@ export function DashboardPage() {
           </>
         }
       />
+
+      <ProfileCompletionCard />
 
       <DashboardStatsGrid />
 

@@ -24,6 +24,7 @@ import {
   ensureCurrencyOption,
   ensureTimezoneOption,
 } from '@/services/settings/options'
+import { BUSINESS_TYPES } from '@/services/onboarding'
 import type {
   CompanySettings,
   CompanySettingsInput,
@@ -35,6 +36,12 @@ type CompanySettingsFormProps = {
 }
 
 const HEX_PATTERN = /^#[0-9A-Fa-f]{6}$/
+const EMAIL_PATTERN = /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const REQUIRED_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const BUSINESS_TYPE_OPTIONS = BUSINESS_TYPES.map((value) => ({
+  value,
+  label: value,
+}))
 
 export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
   const updateSettings = useUpdateCompanySettings()
@@ -56,8 +63,10 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
   } = useForm<CompanySettingsInput>({
     defaultValues: {
       name: settings.name,
+      businessType: settings.businessType,
       email: settings.email,
       phone: settings.phone,
+      website: settings.website,
       taxId: settings.taxId,
       addressLine1: settings.addressLine1,
       addressLine2: settings.addressLine2,
@@ -66,6 +75,9 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
       postalCode: settings.postalCode,
       country: settings.country,
       logoUrl: settings.logoUrl,
+      senderName: settings.senderName,
+      senderEmail: settings.senderEmail,
+      replyTo: settings.replyTo,
       primaryColor: settings.primaryColor,
       invoiceFooter: settings.invoiceFooter,
       currency: settings.currency,
@@ -89,9 +101,12 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
         currency: values.currency.trim().toUpperCase(),
         timezone: values.timezone.trim(),
         invoicePrefix: values.invoicePrefix.trim(),
+        senderName: values.senderName.trim(),
+        senderEmail: values.senderEmail.trim().toLowerCase(),
+        replyTo: values.replyTo.trim().toLowerCase(),
       })
       setSuccessMessage(
-        'Company settings saved. New invoices and PDFs will use these details.',
+        'Company settings saved. Branding, invoices, and emails will use these details.',
       )
     } catch (error) {
       setFormError(
@@ -130,7 +145,7 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
       {!settings.canEdit ? (
         <Alert variant="info">
-          Only company owners and admins can edit branding and company details.
+          Only company owners and admins can edit company settings.
         </Alert>
       ) : null}
 
@@ -142,7 +157,7 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
           <div>
             <CardTitle>Company profile</CardTitle>
             <CardDescription>
-              Name, logo, and contact details shown on invoices and PDFs.
+              Name, logo, and contact details shown across the app and on PDFs.
             </CardDescription>
           </div>
         </CardHeader>
@@ -167,22 +182,31 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
             })}
           />
 
+          <Select
+            label="Business type"
+            disabled={disabled}
+            options={BUSINESS_TYPE_OPTIONS}
+            placeholder="Select business type"
+            error={errors.businessType?.message}
+            {...register('businessType')}
+          />
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Email"
+              label="Company email"
               type="email"
               placeholder="billing@company.com"
               disabled={disabled}
               error={errors.email?.message}
               {...register('email', {
                 pattern: {
-                  value: /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  value: EMAIL_PATTERN,
                   message: 'Enter a valid email',
                 },
               })}
             />
             <Input
-              label="Phone"
+              label="Company phone"
               type="tel"
               placeholder="+1 555 0100"
               disabled={disabled}
@@ -190,6 +214,15 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
               {...register('phone')}
             />
           </div>
+
+          <Input
+            label="Website"
+            type="url"
+            placeholder="https://company.com"
+            disabled={disabled}
+            error={errors.website?.message}
+            {...register('website')}
+          />
 
           <Input
             label="GST number"
@@ -206,7 +239,7 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
           <div>
             <CardTitle>Address</CardTitle>
             <CardDescription>
-              Business address printed on invoices and letters.
+              Printed on invoices and PDF documents.
             </CardDescription>
           </div>
         </CardHeader>
@@ -216,7 +249,6 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
             label="Address line 1"
             placeholder="Street address"
             disabled={disabled}
-            error={errors.addressLine1?.message}
             {...register('addressLine1')}
           />
           <Input
@@ -247,9 +279,63 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
       <Card>
         <CardHeader>
           <div>
+            <CardTitle>Email sender</CardTitle>
+            <CardDescription>
+              Used when sending invoices. The Resend API key stays on the server
+              — only these public sender fields are stored per company.
+            </CardDescription>
+          </div>
+        </CardHeader>
+
+        <div className="space-y-4">
+          <Input
+            label="Sender name"
+            placeholder="Acme Billing"
+            disabled={disabled}
+            error={errors.senderName?.message}
+            {...register('senderName', {
+              required: 'Sender name is required',
+              minLength: { value: 2, message: 'Enter at least 2 characters' },
+            })}
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Sender email"
+              type="email"
+              placeholder="noreply@yourdomain.com"
+              disabled={disabled}
+              error={errors.senderEmail?.message}
+              {...register('senderEmail', {
+                required: 'Sender email is required',
+                pattern: {
+                  value: REQUIRED_EMAIL,
+                  message: 'Enter a valid sender email',
+                },
+              })}
+            />
+            <Input
+              label="Reply-to email"
+              type="email"
+              placeholder="support@yourdomain.com"
+              disabled={disabled}
+              error={errors.replyTo?.message}
+              {...register('replyTo', {
+                pattern: {
+                  value: EMAIL_PATTERN,
+                  message: 'Enter a valid reply-to email',
+                },
+              })}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div>
             <CardTitle>Invoicing & localization</CardTitle>
             <CardDescription>
-              Currency, timezone, and invoice numbering for this company only.
+              Prefix, currency, timezone, and footer for this company only.
             </CardDescription>
           </div>
         </CardHeader>
@@ -261,22 +347,14 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
               disabled={disabled}
               options={currencyOptions}
               error={errors.currency?.message}
-              {...register('currency', {
-                required: 'Currency is required',
-                pattern: {
-                  value: /^[A-Za-z]{3}$/,
-                  message: 'Use a 3-letter currency code',
-                },
-              })}
+              {...register('currency', { required: 'Currency is required' })}
             />
             <Select
               label="Timezone"
               disabled={disabled}
               options={timezoneOptions}
               error={errors.timezone?.message}
-              {...register('timezone', {
-                required: 'Timezone is required',
-              })}
+              {...register('timezone', { required: 'Timezone is required' })}
             />
           </div>
 
@@ -296,7 +374,7 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
 
           <Textarea
             label="Invoice footer"
-            placeholder="Thank you for your business. Payment due within 30 days."
+            placeholder="Thank you for your business."
             disabled={disabled}
             error={errors.invoiceFooter?.message}
             {...register('invoiceFooter', {
@@ -314,44 +392,41 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
           <div>
             <CardTitle>Brand color</CardTitle>
             <CardDescription>
-              Used on invoices, PDFs, and your workspace accent.
+              Accent color for the workspace, invoices, and PDFs.
             </CardDescription>
           </div>
         </CardHeader>
 
-        <div className="space-y-4">
-          <Controller
-            name="primaryColor"
-            control={control}
-            rules={{
-              required: 'Brand color is required',
-              pattern: {
-                value: HEX_PATTERN,
-                message: 'Use a hex color like #1a73f5',
-              },
-            }}
-            render={({ field }) => (
-              <ColorField
-                label="Brand color"
-                value={field.value}
-                disabled={disabled}
-                error={errors.primaryColor?.message}
-                onChange={(value) => {
-                  field.onChange(value)
-                  if (HEX_PATTERN.test(value)) {
-                    applyBrandColor(value)
-                  }
-                }}
-              />
-            )}
-          />
-        </div>
+        <Controller
+          name="primaryColor"
+          control={control}
+          rules={{
+            required: 'Brand color is required',
+            pattern: {
+              value: HEX_PATTERN,
+              message: 'Use a hex color like #1a73f5',
+            },
+          }}
+          render={({ field }) => (
+            <ColorField
+              label="Brand color"
+              value={field.value}
+              disabled={disabled}
+              error={errors.primaryColor?.message}
+              onChange={(value) => {
+                field.onChange(value)
+                if (HEX_PATTERN.test(value)) {
+                  applyBrandColor(value)
+                }
+              }}
+            />
+          )}
+        />
       </Card>
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-surface-500 dark:text-surface-400">
-          Settings are isolated per company. Other tenants never see these
-          values.
+          Settings are isolated per company via Row Level Security.
         </p>
         <Button
           type="submit"

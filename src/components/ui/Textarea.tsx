@@ -24,11 +24,13 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={textareaId}
           className={cn(
-            'min-h-24 w-full rounded-lg border border-surface-200 bg-white px-3 py-2 text-sm',
+            'min-h-24 w-full rounded-xl border border-surface-200 bg-white px-3.5 py-2.5 text-sm',
             'text-surface-900 placeholder:text-surface-400',
+            'transition-[border-color,box-shadow] duration-200',
             'focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20',
             'dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50',
             'dark:placeholder:text-surface-500 dark:focus:border-brand-400',
+            'disabled:cursor-not-allowed disabled:opacity-60',
             error && 'border-red-500 focus:border-red-500 focus:ring-red-500/20',
             className,
           )}

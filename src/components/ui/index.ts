@@ -1,5 +1,6 @@
 export { Button } from '@/components/ui/Button'
 export { Input } from '@/components/ui/Input'
+export { PasswordInput } from '@/components/ui/PasswordInput'
 export { Textarea } from '@/components/ui/Textarea'
 export { Select } from '@/components/ui/Select'
 export { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { AuthLayout } from '@/layouts/AuthLayout'
-import { Alert, Button, Input, Spinner } from '@/components/ui'
+import { Alert, Button, Input, PasswordInput, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { paths } from '@/lib/paths'
 
@@ -27,6 +27,7 @@ export function Login() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     defaultValues: { email: '', password: '' },
+    mode: 'onBlur',
   })
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
@@ -48,21 +49,25 @@ export function Login() {
           Don&apos;t have an account?{' '}
           <Link
             to={paths.register}
-            className="font-medium text-brand-600 hover:underline dark:text-brand-400"
+            className="font-medium text-brand-600 transition-colors hover:text-brand-700 hover:underline dark:text-brand-400"
           >
             Create one
           </Link>
         </>
       }
     >
-      <form className="space-y-4" onSubmit={onSubmit} noValidate>
-        {formError ? <Alert>{formError}</Alert> : null}
+      <form className="space-y-5" onSubmit={onSubmit} noValidate>
+        {formError ? (
+          <Alert role="alert">{formError}</Alert>
+        ) : null}
 
         <Input
           label="Email"
           type="email"
           autoComplete="email"
-          placeholder="you@example.com"
+          inputMode="email"
+          placeholder="you@company.com"
+          disabled={isSubmitting}
           error={errors.email?.message}
           {...register('email', {
             required: 'Email is required',
@@ -73,12 +78,12 @@ export function Login() {
           })}
         />
 
-        <div className="space-y-1.5">
-          <Input
+        <div className="space-y-2">
+          <PasswordInput
             label="Password"
-            type="password"
             autoComplete="current-password"
-            placeholder="••••••••"
+            placeholder="Enter your password"
+            disabled={isSubmitting}
             error={errors.password?.message}
             {...register('password', {
               required: 'Password is required',
@@ -91,15 +96,23 @@ export function Login() {
           <div className="text-right">
             <Link
               to={paths.forgotPassword}
-              className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+              className="text-xs font-medium text-brand-600 transition-colors hover:text-brand-700 hover:underline dark:text-brand-400"
             >
               Forgot password?
             </Link>
           </div>
         </div>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? <Spinner className="h-4 w-4 border-white/30 border-t-white" /> : null}
+        <Button
+          type="submit"
+          className="mt-1 w-full"
+          size="lg"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+        >
+          {isSubmitting ? (
+            <Spinner className="h-4 w-4 border-white/30 border-t-white" />
+          ) : null}
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>

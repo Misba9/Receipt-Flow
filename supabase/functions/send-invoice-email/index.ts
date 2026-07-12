@@ -1,14 +1,12 @@
 /**
- * Sends an invoice email via Resend with the stored PDF attached.
+ * Sends an invoice email via Resend using the caller's company branding.
  *
- * Secrets (never hardcode):
- *   RESEND_API_KEY
- *   RESEND_FROM_EMAIL          e.g. "ReceiptFlow <noreply@velonerp.com>"
- *   RESEND_VERIFIED_DOMAIN     e.g. "velonerp.com"
+ * Platform secrets only (never per-tenant keys):
+ *   RESEND_API_KEY            — global Resend account
+ *   RESEND_VERIFIED_DOMAIN    — optional allowlist (e.g. velonerp.com)
  *   APP_URL
  *
- * Deploy:
- *   supabase functions deploy send-invoice-email
+ * From / reply_to / subject come from the company row — not env hardcoding.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
@@ -38,17 +36,16 @@ type InvoiceRow = {
   } | null
 }
 
-type CompanyRow = {
+type CompanyEmailRow = {
   name: string
   email: string | null
   phone: string | null
+  website: string | null
   tax_id: string | null
-  primary_color?: string
+  sender_name: string | null
+  sender_email: string | null
+  reply_to: string | null
 }
-
-/** Default production sender for the verified velonerp.com domain. */
-const DEFAULT_FROM = 'ReceiptFlow <noreply@velonerp.com>'
-const DEFAULT_VERIFIED_DOMAIN = 'velonerp.com'
 
 function formatMoney(amount: number, currency: string) {
   try {
@@ -67,6 +64,21 @@ function escapeHtml(value: string) {
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function extractDomain(email: string) {
+  return email.split('@')[1]?.toLowerCase() ?? ''
+}
+
+function isDomainAllowed(email: string, verifiedDomain: string | undefined) {
+  if (!verifiedDomain?.trim()) return true
+  const allowed = verifiedDomain.trim().toLowerCase().replace(/^\.+/, '')
+  const domain = extractDomain(email)
+  return domain === allowed || domain.endsWith(`.${allowed}`)
 }
 
 function buildInvoiceEmailHtml(params: {
@@ -132,9 +144,7 @@ function buildInvoiceEmailHtml(params: {
           </tr>
           <tr>
             <td style="padding:8px 32px 24px 32px;">
-              <p style="margin:0;font-size:15px;line-height:1.6;color:#334155;">
-                Hi ${safeCustomer},
-              </p>
+              <p style="margin:0;font-size:15px;line-height:1.6;color:#334155;">Hi ${safeCustomer},</p>
               <p style="margin:12px 0 0 0;font-size:15px;line-height:1.6;color:#334155;">
                 Please find your invoice attached as a PDF. A summary is included below for your records.
               </p>
@@ -181,14 +191,14 @@ function buildInvoiceEmailHtml(params: {
           <tr>
             <td style="padding:0 32px 28px 32px;">
               <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">
-                The full invoice PDF is attached to this email. If you have any questions, reply to this message or contact ${safeCompany}${companyEmail ? ` at ${escapeHtml(companyEmail)}` : ''}${companyPhone ? ` · ${escapeHtml(companyPhone)}` : ''}.
+                The full invoice PDF is attached. Contact ${safeCompany}${companyEmail ? ` at ${escapeHtml(companyEmail)}` : ''}${companyPhone ? ` · ${escapeHtml(companyPhone)}` : ''}.
               </p>
             </td>
           </tr>
           <tr>
             <td style="padding:18px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;">
               <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center;">
-                Sent by ${safeCompany} via <a href="${escapeHtml(appUrl)}" style="color:#64748b;text-decoration:none;">ReceiptFlow</a>
+                Sent by ${safeCompany}${appUrl ? ` · <a href="${escapeHtml(appUrl)}" style="color:#64748b;text-decoration:none;">Open app</a>` : ''}
               </p>
             </td>
           </tr>
@@ -227,43 +237,10 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
   return btoa(binary)
 }
 
-/** Extracts bare email from `Name <email@domain>` or plain `email@domain`. */
-function extractEmailAddress(from: string): string | null {
-  const angled = from.match(/<([^>]+)>/)
-  const candidate = (angled?.[1] ?? from).trim().toLowerCase()
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)) return null
-  return candidate
-}
-
-function extractDomain(email: string): string {
-  return email.split('@')[1]?.toLowerCase() ?? ''
-}
-
-/**
- * Ensures the configured sender uses the verified production domain
- * (or a subdomain of it).
- */
-function isSenderDomainVerified(
-  fromAddress: string,
-  verifiedDomain: string,
-): boolean {
-  const email = extractEmailAddress(fromAddress)
-  if (!email) return false
-
-  const senderDomain = extractDomain(email)
-  const allowed = verifiedDomain.trim().toLowerCase().replace(/^\.+/, '')
-  if (!allowed || !senderDomain) return false
-
-  return senderDomain === allowed || senderDomain.endsWith(`.${allowed}`)
-}
-
 function resendErrorMessage(body: unknown, fallback: string) {
   if (!body || typeof body !== 'object') return fallback
   const row = body as Record<string, unknown>
   if (typeof row.message === 'string' && row.message.trim()) return row.message
-  if (typeof row.name === 'string' && typeof row.message === 'string') {
-    return row.message
-  }
   if (typeof row.error === 'string' && row.error.trim()) return row.error
   if (row.error && typeof row.error === 'object') {
     const nested = row.error as Record<string, unknown>
@@ -278,85 +255,43 @@ function resendErrorMessage(body: unknown, fallback: string) {
   }
 }
 
+function fail(message: string, status: number) {
+  return jsonResponse({ success: false, message, error: message }, status)
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return handleCorsPreflightRequest()
   }
 
   if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405)
+    return fail('Method not allowed', 405)
   }
 
   try {
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    const resendFromEmail =
-      Deno.env.get('RESEND_FROM_EMAIL')?.trim() || DEFAULT_FROM
-    const verifiedDomain =
-      Deno.env.get('RESEND_VERIFIED_DOMAIN')?.trim() || DEFAULT_VERIFIED_DOMAIN
+    const verifiedDomain = Deno.env.get('RESEND_VERIFIED_DOMAIN')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    const appUrl = Deno.env.get('APP_URL') ?? 'http://localhost:5173'
+    const appUrl = Deno.env.get('APP_URL') ?? ''
 
     if (!resendApiKey) {
-      return jsonResponse(
-        {
-          success: false,
-          message: 'Email is not configured. Set RESEND_API_KEY secret.',
-          error: 'Email is not configured. Set RESEND_API_KEY secret.',
-        },
-        500,
-      )
-    }
-
-    if (!isSenderDomainVerified(resendFromEmail, verifiedDomain)) {
-      console.error('Invalid sender domain', {
-        from: resendFromEmail,
-        verifiedDomain,
-      })
-      return jsonResponse(
-        {
-          success: false,
-          message: 'Sender domain is not verified.',
-          error: 'Sender domain is not verified.',
-        },
-        400,
-      )
+      return fail('Email is not configured. Set RESEND_API_KEY secret.', 500)
     }
 
     if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
-      return jsonResponse(
-        {
-          success: false,
-          message: 'Supabase environment is missing.',
-          error: 'Supabase environment is missing.',
-        },
-        500,
-      )
+      return fail('Supabase environment is missing.', 500)
     }
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return jsonResponse(
-        {
-          success: false,
-          message: 'Missing authorization header.',
-          error: 'Missing authorization header.',
-        },
-        401,
-      )
+      return fail('Missing authorization header.', 401)
     }
 
     const { invoiceId } = (await req.json()) as { invoiceId?: string }
     if (!invoiceId) {
-      return jsonResponse(
-        {
-          success: false,
-          message: 'invoiceId is required.',
-          error: 'invoiceId is required.',
-        },
-        400,
-      )
+      return fail('invoiceId is required.', 400)
     }
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -370,14 +305,7 @@ Deno.serve(async (req) => {
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      return jsonResponse(
-        {
-          success: false,
-          message: 'Unauthorized.',
-          error: 'Unauthorized.',
-        },
-        401,
-      )
+      return fail('Unauthorized.', 401)
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -387,14 +315,7 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (profileError || !profile?.company_id) {
-      return jsonResponse(
-        {
-          success: false,
-          message: 'Company profile not found.',
-          error: 'Company profile not found.',
-        },
-        403,
-      )
+      return fail('Company profile not found.', 403)
     }
 
     const callerCompanyId = String(profile.company_id)
@@ -424,61 +345,37 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (invoiceError || !invoice) {
-      const message = invoiceError?.message ?? 'Invoice not found.'
-      return jsonResponse(
-        { success: false, message, error: message },
-        404,
-      )
+      return fail(invoiceError?.message ?? 'Invoice not found.', 404)
     }
 
     const row = invoice as unknown as InvoiceRow
-
     if (String(row.company_id) !== callerCompanyId) {
-      return jsonResponse(
-        {
-          success: false,
-          message: 'Invoice not found.',
-          error: 'Invoice not found.',
-        },
-        404,
-      )
+      return fail('Invoice not found.', 404)
     }
 
     const customerEmail = row.customer?.email?.trim()
-
     if (!customerEmail) {
-      return jsonResponse(
-        {
-          success: false,
-          message: 'Customer does not have an email address.',
-          error: 'Customer does not have an email address.',
-        },
-        422,
-      )
+      return fail('Customer does not have an email address.', 422)
     }
 
     if (!row.pdf_url) {
-      const message =
-        'Invoice PDF has not been generated yet. Generate and upload the PDF first.'
-      return jsonResponse({ success: false, message, error: message }, 422)
+      return fail(
+        'Invoice PDF has not been generated yet. Generate and upload the PDF first.',
+        422,
+      )
     }
 
     if (!row.pdf_url.startsWith(`${callerCompanyId}/`)) {
-      return jsonResponse(
-        {
-          success: false,
-          message: 'Invalid invoice PDF path.',
-          error: 'Invalid invoice PDF path.',
-        },
-        422,
-      )
+      return fail('Invalid invoice PDF path.', 422)
     }
 
     const [{ data: company, error: companyError }, { data: settings }] =
       await Promise.all([
         supabase
           .from('companies')
-          .select('name, email, phone, tax_id')
+          .select(
+            'name, email, phone, website, tax_id, sender_name, sender_email, reply_to',
+          )
           .eq('id', callerCompanyId)
           .maybeSingle(),
         supabase
@@ -489,31 +386,53 @@ Deno.serve(async (req) => {
       ])
 
     if (companyError || !company) {
-      const message = companyError?.message ?? 'Company not found.'
-      return jsonResponse(
-        { success: false, message, error: message },
-        404,
+      return fail(companyError?.message ?? 'Company not found.', 404)
+    }
+
+    const companyRow = company as CompanyEmailRow
+    const companyName = (companyRow.name ?? '').trim()
+    if (!companyName) {
+      return fail('Company name is missing. Update company settings.', 422)
+    }
+
+    const senderName = (companyRow.sender_name ?? companyName).trim()
+    const senderEmail = (companyRow.sender_email ?? '').trim().toLowerCase()
+    if (!senderEmail) {
+      return fail(
+        'Sender email is empty. Set Sender Email in Company Settings.',
+        422,
+      )
+    }
+    if (!isValidEmail(senderEmail)) {
+      return fail('Sender email is invalid.', 422)
+    }
+    if (!isDomainAllowed(senderEmail, verifiedDomain ?? undefined)) {
+      return fail(
+        'Sender domain is not verified for this platform Resend account.',
+        400,
       )
     }
 
-    const companyRow = company as CompanyRow
+    const replyToRaw = (companyRow.reply_to ?? companyRow.email ?? '')
+      .trim()
+      .toLowerCase()
+    if (replyToRaw && !isValidEmail(replyToRaw)) {
+      return fail('Reply-to email is invalid.', 422)
+    }
+
     const brandColor = settings?.primary_color ?? '#1a73f5'
+    const fromAddress = `${senderName} <${senderEmail}>`
+    const subject = `Invoice from ${companyName}`
 
     const { data: pdfFile, error: pdfError } = await admin.storage
       .from('invoice-pdfs')
       .download(row.pdf_url)
 
     if (pdfError || !pdfFile) {
-      const message = pdfError?.message ?? 'Unable to download invoice PDF.'
-      return jsonResponse(
-        { success: false, message, error: message },
-        500,
-      )
+      return fail(pdfError?.message ?? 'Unable to download invoice PDF.', 500)
     }
 
     const pdfBase64 = arrayBufferToBase64(await pdfFile.arrayBuffer())
-    const companyName = companyRow.name || 'Company'
-    const subject = `Invoice from ${companyName}`
     const attachmentName = `${row.invoice_number}.pdf`
 
     const html = buildInvoiceEmailHtml({
@@ -542,40 +461,43 @@ Deno.serve(async (req) => {
       currency: row.currency,
     })
 
-    // Include sender so retries after rotating from-address / API key are not
-    // stuck on a cached Resend error for 24h.
     const idempotencyKey =
-      `invoice-email:${invoiceId}:${row.invoice_number}:${extractEmailAddress(resendFromEmail) ?? 'unknown'}`.slice(
+      `invoice-email:${invoiceId}:${row.invoice_number}:${senderEmail}`.slice(
         0,
         256,
       )
+
+    const resendPayload: Record<string, unknown> = {
+      from: fromAddress,
+      to: [customerEmail],
+      subject,
+      html,
+      text,
+      attachments: [
+        {
+          filename: attachmentName,
+          content: pdfBase64,
+          content_type: 'application/pdf',
+        },
+      ],
+      tags: [
+        { name: 'category', value: 'invoice' },
+        { name: 'invoice_id', value: invoiceId },
+      ],
+    }
+
+    if (replyToRaw) {
+      resendPayload.reply_to = [replyToRaw]
+    }
 
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
-        // Prevent duplicate sends on retries (Resend best practice)
-        'Idempotency-Key': idempotencyKey.slice(0, 256),
+        'Idempotency-Key': idempotencyKey,
       },
-      body: JSON.stringify({
-        from: resendFromEmail,
-        to: [customerEmail],
-        subject,
-        html,
-        text,
-        attachments: [
-          {
-            filename: attachmentName,
-            content: pdfBase64,
-            content_type: 'application/pdf',
-          },
-        ],
-        tags: [
-          { name: 'category', value: 'invoice' },
-          { name: 'invoice_id', value: invoiceId },
-        ],
-      }),
+      body: JSON.stringify(resendPayload),
     })
 
     const resendRaw = await resendResponse.text()
@@ -593,20 +515,11 @@ Deno.serve(async (req) => {
         body: resendBody,
         raw: resendRaw,
       })
-
       const message = resendErrorMessage(
         resendBody,
         `Failed to send invoice email via Resend (HTTP ${resendResponse.status}).`,
       )
-
-      return jsonResponse(
-        {
-          success: false,
-          message,
-          error: message,
-        },
-        400,
-      )
+      return fail(message, 400)
     }
 
     const sent = (resendBody ?? {}) as Record<string, unknown>
@@ -617,18 +530,12 @@ Deno.serve(async (req) => {
       id: sent.id ?? null,
       to: customerEmail,
       subject,
-      from: resendFromEmail,
+      from: fromAddress,
     })
   } catch (error) {
     console.error('send-invoice-email failed', error)
-    const message =
-      error instanceof Error ? error.message : 'Unexpected email failure.'
-    return jsonResponse(
-      {
-        success: false,
-        message,
-        error: message,
-      },
+    return fail(
+      error instanceof Error ? error.message : 'Unexpected email failure.',
       500,
     )
   }

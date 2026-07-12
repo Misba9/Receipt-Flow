@@ -10,8 +10,9 @@ import {
   X,
 } from 'lucide-react'
 import { useSessionAccess } from '@/services/admin'
+import { useCompanySettings } from '@/services/settings/hooks'
 import { useAuth } from '@/hooks/useAuth'
-import { APP_NAME, cn } from '@/utils'
+import { cn } from '@/utils'
 import { paths } from '@/lib/paths'
 
 const mainNav = [
@@ -83,11 +84,15 @@ function NavItem({
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuth()
   const { data: access } = useSessionAccess()
+  const { data: company } = useCompanySettings()
   const displayName =
     typeof user?.user_metadata?.full_name === 'string' &&
     user.user_metadata.full_name.trim()
       ? user.user_metadata.full_name
       : (user?.email ?? 'Account')
+
+  const companyName = company?.name?.trim() || 'Workspace'
+  const invoicePrefix = company?.invoicePrefix?.trim()
 
   return (
     <>
@@ -109,16 +114,24 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         )}
       >
         <div className="flex h-16 items-center justify-between gap-2 border-b border-surface-200 px-5 dark:border-surface-800">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm shadow-brand-600/30">
-              <FileText className="h-4 w-4" />
-            </div>
-            <div className="leading-tight">
-              <span className="block text-base font-semibold tracking-tight text-surface-900 dark:text-surface-50">
-                {APP_NAME}
+          <div className="flex min-w-0 items-center gap-2.5">
+            {company?.logoUrl ? (
+              <img
+                src={company.logoUrl}
+                alt={companyName}
+                className="h-9 w-9 rounded-xl object-contain"
+              />
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm shadow-brand-600/30">
+                <FileText className="h-4 w-4" />
+              </div>
+            )}
+            <div className="min-w-0 leading-tight">
+              <span className="block truncate text-base font-semibold tracking-tight text-surface-900 dark:text-surface-50">
+                {companyName}
               </span>
               <span className="text-[11px] font-medium uppercase tracking-wider text-surface-400">
-                Workspace
+                {invoicePrefix ? `Invoices · ${invoicePrefix}` : 'Workspace'}
               </span>
             </div>
           </div>
