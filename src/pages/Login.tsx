@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { AuthLayout } from '@/components/layout/AuthLayout'
+import { AuthLayout } from '@/layouts/AuthLayout'
 import { Alert, Button, Input, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
-import { paths } from '@/routes/paths'
+import { paths } from '@/lib/paths'
 
 type LoginFormValues = {
   email: string

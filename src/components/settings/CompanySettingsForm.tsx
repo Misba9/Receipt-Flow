@@ -1,0 +1,304 @@
+import { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { Save } from 'lucide-react'
+import { ColorField } from '@/components/settings/ColorField'
+import { LogoUpload } from '@/components/settings/LogoUpload'
+import { Alert } from '@/components/ui/Alert'
+import { Button } from '@/components/ui/Button'
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { Spinner } from '@/components/ui/Spinner'
+import { Textarea } from '@/components/ui/Textarea'
+import {
+  useRemoveCompanyLogo,
+  useUpdateCompanySettings,
+  useUploadCompanyLogo,
+} from '@/services/settings/hooks'
+import type {
+  CompanySettings,
+  CompanySettingsInput,
+} from '@/services/settings/types'
+import { applyBrandColor } from '@/lib/branding'
+
+type CompanySettingsFormProps = {
+  settings: CompanySettings
+}
+
+const HEX_PATTERN = /^#[0-9A-Fa-f]{6}$/
+
+export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
+  const updateSettings = useUpdateCompanySettings()
+  const uploadLogo = useUploadCompanyLogo()
+  const removeLogo = useRemoveCompanyLogo()
+
+  const [logoUrl, setLogoUrl] = useState<string | null>(settings.logoUrl)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isDirty, isSubmitting },
+  } = useForm<CompanySettingsInput>({
+    defaultValues: {
+      name: settings.name,
+      email: settings.email,
+      phone: settings.phone,
+      taxId: settings.taxId,
+      addressLine1: settings.addressLine1,
+      addressLine2: settings.addressLine2,
+      city: settings.city,
+      state: settings.state,
+      postalCode: settings.postalCode,
+      country: settings.country,
+      logoUrl: settings.logoUrl,
+      primaryColor: settings.primaryColor,
+      invoiceFooter: settings.invoiceFooter,
+    },
+  })
+
+  const disabled = !settings.canEdit || isSubmitting
+  const logoChanged = logoUrl !== settings.logoUrl
+
+  const onSubmit = handleSubmit(async (values) => {
+    setFormError(null)
+    setSuccessMessage(null)
+
+    try {
+      await updateSettings.mutateAsync({
+        ...values,
+        logoUrl,
+        primaryColor: values.primaryColor.toLowerCase(),
+      })
+      setSuccessMessage('Company settings saved.')
+    } catch (error) {
+      setFormError(
+        error instanceof Error ? error.message : 'Unable to save settings.',
+      )
+    }
+  })
+
+  const handleLogoSelect = async (file: File) => {
+    setFormError(null)
+    setSuccessMessage(null)
+    try {
+      const url = await uploadLogo.mutateAsync(file)
+      setLogoUrl(url)
+    } catch (error) {
+      setFormError(
+        error instanceof Error ? error.message : 'Unable to upload logo.',
+      )
+    }
+  }
+
+  const handleLogoRemove = async () => {
+    setFormError(null)
+    setSuccessMessage(null)
+    try {
+      await removeLogo.mutateAsync(logoUrl)
+      setLogoUrl(null)
+    } catch (error) {
+      setFormError(
+        error instanceof Error ? error.message : 'Unable to remove logo.',
+      )
+    }
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={onSubmit} noValidate>
+      {!settings.canEdit ? (
+        <Alert variant="info">
+          Only company owners and admins can edit branding and company details.
+        </Alert>
+      ) : null}
+
+      {formError ? <Alert>{formError}</Alert> : null}
+      {successMessage ? <Alert variant="success">{successMessage}</Alert> : null}
+
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Company profile</CardTitle>
+            <CardDescription>
+              Details shown on invoices and shared with your team.
+            </CardDescription>
+          </div>
+        </CardHeader>
+
+        <div className="space-y-4">
+          <LogoUpload
+            value={logoUrl}
+            disabled={disabled}
+            uploading={uploadLogo.isPending || removeLogo.isPending}
+            onSelect={handleLogoSelect}
+            onRemove={handleLogoRemove}
+          />
+
+          <Input
+            label="Company name"
+            placeholder="Acme Trading Co."
+            disabled={disabled}
+            error={errors.name?.message}
+            {...register('name', {
+              required: 'Company name is required',
+              minLength: { value: 2, message: 'Enter at least 2 characters' },
+            })}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Email"
+              type="email"
+              placeholder="billing@company.com"
+              disabled={disabled}
+              error={errors.email?.message}
+              {...register('email', {
+                pattern: {
+                  value: /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: 'Enter a valid email',
+                },
+              })}
+            />
+            <Input
+              label="Phone"
+              type="tel"
+              placeholder="+1 555 0100"
+              disabled={disabled}
+              error={errors.phone?.message}
+              {...register('phone')}
+            />
+          </div>
+
+          <Input
+            label="GST / Tax ID"
+            placeholder="GSTIN / VAT / EIN"
+            disabled={disabled}
+            error={errors.taxId?.message}
+            {...register('taxId')}
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Address</CardTitle>
+            <CardDescription>
+              Business address for invoices and letters.
+            </CardDescription>
+          </div>
+        </CardHeader>
+
+        <div className="space-y-4">
+          <Input
+            label="Address line 1"
+            placeholder="Street address"
+            disabled={disabled}
+            error={errors.addressLine1?.message}
+            {...register('addressLine1')}
+          />
+          <Input
+            label="Address line 2"
+            placeholder="Suite, floor, etc. (optional)"
+            disabled={disabled}
+            {...register('addressLine2')}
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="City" disabled={disabled} {...register('city')} />
+            <Input
+              label="State / Province"
+              disabled={disabled}
+              {...register('state')}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Postal code"
+              disabled={disabled}
+              {...register('postalCode')}
+            />
+            <Input label="Country" disabled={disabled} {...register('country')} />
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Branding</CardTitle>
+            <CardDescription>
+              Each company keeps its own colors and invoice footer.
+            </CardDescription>
+          </div>
+        </CardHeader>
+
+        <div className="space-y-4">
+          <Controller
+            name="primaryColor"
+            control={control}
+            rules={{
+              required: 'Primary color is required',
+              pattern: {
+                value: HEX_PATTERN,
+                message: 'Use a hex color like #1a73f5',
+              },
+            }}
+            render={({ field }) => (
+              <ColorField
+                label="Primary color"
+                value={field.value}
+                disabled={disabled}
+                error={errors.primaryColor?.message}
+                onChange={(value) => {
+                  field.onChange(value)
+                  if (HEX_PATTERN.test(value)) {
+                    applyBrandColor(value)
+                  }
+                }}
+              />
+            )}
+          />
+
+          <Textarea
+            label="Invoice footer"
+            placeholder="Thank you for your business. Payment due within 30 days."
+            disabled={disabled}
+            error={errors.invoiceFooter?.message}
+            {...register('invoiceFooter', {
+              maxLength: {
+                value: 1000,
+                message: 'Footer must be 1000 characters or less',
+              },
+            })}
+          />
+        </div>
+      </Card>
+
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-surface-500 dark:text-surface-400">
+          Changes apply to your company only. Other tenants are unaffected.
+        </p>
+        <Button
+          type="submit"
+          disabled={disabled || (!isDirty && !logoChanged)}
+          className="sm:min-w-36"
+        >
+          {isSubmitting || updateSettings.isPending ? (
+            <Spinner className="h-4 w-4 border-white/30 border-t-white" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          {isSubmitting || updateSettings.isPending
+            ? 'Saving…'
+            : 'Save settings'}
+        </Button>
+      </div>
+    </form>
+  )
+}

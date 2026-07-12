@@ -1,0 +1,6 @@
+export { StatCard } from '@/components/dashboard/StatCard'
+export { SectionCard } from '@/components/dashboard/SectionCard'
+export { DashboardStatsGrid } from '@/components/dashboard/DashboardStatsGrid'
+export { LatestCustomers } from '@/components/dashboard/LatestCustomers'
+export { RecentInvoices } from '@/components/dashboard/RecentInvoices'
+export { InvoiceStatusBadge } from '@/components/dashboard/InvoiceStatusBadge'

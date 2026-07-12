@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/utils'
 
-type BadgeVariant = 'default' | 'success' | 'warning' | 'danger'
+type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info'
+
+export type { BadgeVariant }
 
 const variantStyles: Record<BadgeVariant, string> = {
   default:
@@ -11,6 +13,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   warning:
     'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   danger: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+  info: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
 }
 
 export function Badge({

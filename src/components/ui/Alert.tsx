@@ -1,8 +1,9 @@
-import { cn } from '@/lib/utils'
+import type { ReactNode } from 'react'
+import { cn } from '@/utils'
 
 type AlertProps = {
   variant?: 'error' | 'success' | 'info'
-  children: string
+  children: ReactNode
   className?: string
 }
 

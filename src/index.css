@@ -4,6 +4,7 @@
 
 @theme {
   --font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Sora', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
 
   --color-brand-50: #eef8ff;
   --color-brand-100: #d9eeff;
@@ -13,6 +14,7 @@
   --color-brand-500: #3394ff;
   --color-brand-600: #1a73f5;
   --color-brand-700: #145ce1;
+  --company-brand: var(--color-brand-600);
   --color-brand-800: #174ab6;
   --color-brand-900: #19418f;
   --color-brand-950: #142957;
@@ -42,5 +44,61 @@
 
   #root {
     @apply min-h-screen;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .landing-grid {
+    background-image:
+      linear-gradient(to right, rgb(148 163 184 / 0.12) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 184 / 0.12) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  @keyframes landing-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes landing-pan {
+    from {
+      transform: scale(1.06) translate3d(0, 0, 0);
+    }
+    to {
+      transform: scale(1) translate3d(0, -1.5%, 0);
+    }
+  }
+
+  @keyframes landing-rise {
+    from {
+      opacity: 0;
+      transform: translateY(28px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-landing-fade-up {
+    animation: landing-fade-up 0.7s ease-out both;
+  }
+
+  .animate-landing-pan {
+    animation: landing-pan 18s ease-out both;
+  }
+
+  .animate-landing-rise {
+    animation: landing-rise 0.8s ease-out both;
   }
 }

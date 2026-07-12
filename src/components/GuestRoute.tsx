@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import { Spinner } from '@/components/ui/Spinner'
+import { PageLoader } from '@/components/PageLoader'
 import { useAuth } from '@/hooks/useAuth'
-import { paths } from '@/routes/paths'
+import { paths } from '@/lib/paths'
 
 /**
  * Auth pages only — redirects signed-in users to the dashboard.
@@ -10,11 +10,7 @@ export function GuestRoute() {
   const { isAuthenticated, isLoading } = useAuth()
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-50 dark:bg-surface-950">
-        <Spinner className="h-8 w-8" />
-      </div>
-    )
+    return <PageLoader label="Checking session…" />
   }
 
   if (isAuthenticated) {

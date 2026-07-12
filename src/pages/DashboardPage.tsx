@@ -1,56 +1,51 @@
-import { Plus, Receipt } from 'lucide-react'
-import { PageHeader } from '@/components/layout/PageHeader'
-import { Badge, Button, Card, CardDescription, CardHeader, CardTitle } from '@/components/ui'
+import { Plus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import {
+  DashboardStatsGrid,
+  LatestCustomers,
+  RecentInvoices,
+} from '@/components/dashboard'
+import { ExportButton } from '@/components/exports/ExportButton'
+import { PageHeader } from '@/layouts/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { exportSalesExcel } from '@/services/exports'
+import { paths } from '@/lib/paths'
 
 export function DashboardPage() {
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description="Overview of your receipts and spending."
+        description="Monitor sales, customers, and invoices at a glance."
         actions={
-          <Button disabled>
-            <Plus className="h-4 w-4" />
-            Add receipt
-          </Button>
+          <>
+            <ExportButton
+              label="Export sales"
+              onExport={exportSalesExcel}
+              variant="secondary"
+            />
+            <Link to={paths.customers}>
+              <Button variant="secondary">Customers</Button>
+            </Link>
+            <Link to={paths.invoiceNew}>
+              <Button>
+                <Plus className="h-4 w-4" />
+                New invoice
+              </Button>
+            </Link>
+          </>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Total receipts</CardTitle>
-              <CardDescription>All time</CardDescription>
-            </div>
-            <Badge>Soon</Badge>
-          </CardHeader>
-          <p className="text-3xl font-semibold tracking-tight">—</p>
-        </Card>
+      <DashboardStatsGrid />
 
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>This month</CardTitle>
-              <CardDescription>Spending total</CardDescription>
-            </div>
-            <Badge variant="success">Soon</Badge>
-          </CardHeader>
-          <p className="text-3xl font-semibold tracking-tight">—</p>
-        </Card>
-
-        <Card className="sm:col-span-2 xl:col-span-1">
-          <CardHeader>
-            <div>
-              <CardTitle>Recent activity</CardTitle>
-              <CardDescription>Latest uploads</CardDescription>
-            </div>
-            <Receipt className="h-4 w-4 text-surface-400" />
-          </CardHeader>
-          <p className="text-sm text-surface-500 dark:text-surface-400">
-            Business logic will populate this section.
-          </p>
-        </Card>
+      <div className="grid gap-4 xl:grid-cols-5">
+        <div className="xl:col-span-2">
+          <LatestCustomers />
+        </div>
+        <div className="min-w-0 xl:col-span-3">
+          <RecentInvoices />
+        </div>
       </div>
     </div>
   )

@@ -1,47 +1,57 @@
-import { PageHeader } from '@/components/layout/PageHeader'
-import { Card, CardDescription, CardHeader, CardTitle, Input } from '@/components/ui'
-import { APP_NAME } from '@/lib/utils'
+import { Building2 } from 'lucide-react'
+import { CompanySettingsForm } from '@/components/settings/CompanySettingsForm'
+import { PageHeader } from '@/layouts/PageHeader'
+import { Alert, Card, EmptyState, Spinner } from '@/components/ui'
+import { useCompanySettings } from '@/services/settings/hooks'
 
 export function SettingsPage() {
+  const { data, isLoading, isError, error, refetch, isFetching } =
+    useCompanySettings()
+
   return (
     <div>
       <PageHeader
-        title="Settings"
-        description="Manage your account and application preferences."
+        title="Company Settings"
+        description="Manage your company profile, logo, and invoice branding."
       />
 
-      <div className="mx-auto max-w-2xl space-y-4">
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Profile</CardTitle>
-              <CardDescription>Placeholder form — no business logic yet.</CardDescription>
-            </div>
-          </CardHeader>
+      <div className="mx-auto max-w-3xl">
+        {isLoading ? (
+          <Card className="flex items-center justify-center gap-3 py-16">
+            <Spinner className="h-6 w-6" />
+            <span className="text-sm text-surface-500">Loading company settings…</span>
+          </Card>
+        ) : isError ? (
           <div className="space-y-4">
-            <Input label="Display name" placeholder="Your name" disabled />
-            <Input label="Email" type="email" placeholder="you@example.com" disabled />
+            <Alert>
+              {error instanceof Error
+                ? error.message
+                : 'Unable to load company settings.'}
+            </Alert>
+            <Card className="p-0">
+              <EmptyState
+                icon={Building2}
+                title="Settings unavailable"
+                description="Confirm your Supabase migrations are applied, then try again."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => void refetch()}
+                    className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
+                    disabled={isFetching}
+                  >
+                    Retry
+                  </button>
+                }
+              />
+            </Card>
           </div>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Application</CardTitle>
-              <CardDescription>Environment metadata</CardDescription>
-            </div>
-          </CardHeader>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between gap-4">
-              <dt className="text-surface-500">App name</dt>
-              <dd className="font-medium">{APP_NAME}</dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-surface-500">Theme</dt>
-              <dd className="font-medium">Use the header toggle</dd>
-            </div>
-          </dl>
-        </Card>
+        ) : data ? (
+          <CompanySettingsForm
+            key={`${data.companyId}-${data.logoUrl ?? 'no-logo'}-${data.primaryColor}`}
+            settings={data}
+          />
+        ) : null}
       </div>
     </div>
   )
