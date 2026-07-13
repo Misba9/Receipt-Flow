@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { useFieldArray, useForm, useWatch } from 'react-hook-form'
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { Check, FileText, Mail, Plus, Trash2 } from 'lucide-react'
 import { Alert, Button, Card, Input, Select, Spinner, Textarea } from '@/components/ui'
+import { QuantityStepper } from '@/components/invoices/QuantityStepper'
 import {
   calculateInvoiceTotals,
   lineAmount,
@@ -229,7 +230,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
       items: values.items.map((item) => ({
         description: item.description.trim(),
         product_type: item.product_type.trim(),
-        quantity: Number(item.quantity),
+        quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
         unit_price: Number(item.unit_price),
       })),
     }
@@ -601,18 +602,26 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
                   />
                 </div>
                 <div className="lg:col-span-2">
-                  <Input
-                    label="Qty"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    disabled={submitting}
-                    error={errors.items?.[index]?.quantity?.message}
-                    {...register(`items.${index}.quantity`, {
+                  <Controller
+                    control={control}
+                    name={`items.${index}.quantity`}
+                    rules={{
                       required: 'Required',
-                      valueAsNumber: true,
-                      min: { value: 0.01, message: 'Must be > 0' },
-                    })}
+                      min: { value: 1, message: 'Must be at least 1' },
+                      validate: (value) =>
+                        Number.isInteger(Number(value)) ||
+                        'Whole numbers only',
+                    }}
+                    render={({ field }) => (
+                      <QuantityStepper
+                        label="Qty"
+                        value={Math.max(1, Math.floor(Number(field.value) || 1))}
+                        min={1}
+                        disabled={submitting}
+                        error={errors.items?.[index]?.quantity?.message}
+                        onChange={(next) => field.onChange(next)}
+                      />
+                    )}
                   />
                 </div>
                 <div className="lg:col-span-2">
@@ -621,8 +630,10 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
                     type="number"
                     step="0.01"
                     min="0"
+                    inputMode="decimal"
                     disabled={submitting}
                     error={errors.items?.[index]?.unit_price?.message}
+                    className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     {...register(`items.${index}.unit_price`, {
                       required: 'Required',
                       valueAsNumber: true,

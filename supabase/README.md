@@ -74,12 +74,12 @@ Do **not** bake a localhost host into client auth redirects — use `window.loca
 
 ```bash
 supabase secrets set RESEND_API_KEY=re_xxxxxxxxx
-supabase secrets set EMAIL_FROM=noreply@receiptflow.app
+supabase secrets set EMAIL_FROM=noreply@velonerp.com
 supabase secrets set APP_URL=https://your-domain.com
 supabase functions deploy send-invoice-email
 ```
 
-From header becomes `"{companies.sender_name}" <EMAIL_FROM>`. Reply-To uses `companies.reply_to` when set. Use a verified Resend domain in production.
+From header becomes `"{company name}" <EMAIL_FROM>` (falls back to `ReceiptFlow`). Reply-To uses `companies.email` when set. Tenants never configure Resend or DNS — only the platform owner verifies `velonerp.com`.
 ## Super Admin
 
 ```sql

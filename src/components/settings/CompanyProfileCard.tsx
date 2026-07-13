@@ -365,6 +365,7 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
             label="Email"
             type="email"
             placeholder="hello@company.com"
+            hint="Used as Reply-To on invoice emails. Sending always uses the platform mailbox."
             disabled={disabled}
             error={errors.email?.message}
             {...register('email', {

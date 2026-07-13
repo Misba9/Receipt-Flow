@@ -1,5 +1,8 @@
 import { getEmailMode, isEmailDevelopmentMode } from '@/services/email/config'
-import { formatInvoiceFromAddress } from '@/services/email/branding'
+import {
+  formatInvoiceFromAddress,
+  getPlatformFromEmail,
+} from '@/services/email/branding'
 import {
   buildInvoiceEmailHtml,
   buildInvoiceEmailSubject,
@@ -33,7 +36,7 @@ function requireCustomerEmail(invoice: InvoiceDetail): string {
 
 /**
  * Single frontend entry point for invoice email.
- * Transport is swappable (platform Resend today; custom domains later).
+ * Production sends go through the platform Resend Edge Function.
  */
 export const EmailService = {
   getMode: getEmailMode,
@@ -76,22 +79,11 @@ export const EmailService = {
   ): InvoiceEmailPreview {
     const recipient = requireCustomerEmail(invoice)
     const companyName = company.name.trim()
-    if (!companyName) {
-      throw new Error('Company name is required before previewing email.')
-    }
+    const displayName = companyName || 'ReceiptFlow'
 
-    const senderName = company.senderName.trim() || companyName
-    if (!senderName) {
-      throw new Error('Sender name is required before previewing email.')
-    }
-
-    const platformFrom =
-      (import.meta.env.VITE_EMAIL_FROM as string | undefined)?.trim() ||
-      'noreply@your-verified-domain.com'
-
-    const subject = buildInvoiceEmailSubject(companyName)
+    const subject = buildInvoiceEmailSubject(displayName)
     const html = buildInvoiceEmailHtml({
-      companyName,
+      companyName: displayName,
       companyEmail: company.email || null,
       companyPhone: company.phone || null,
       customerName: invoice.customer?.name ?? 'Customer',
@@ -108,14 +100,14 @@ export const EmailService = {
       appUrl: appUrl(),
     })
 
-    const replyTo = company.replyTo.trim() || undefined
+    const replyTo = company.email.trim() || undefined
 
     return {
       subject,
       recipient,
       html,
       attachmentName: `${invoice.invoice_number}.pdf`,
-      from: formatInvoiceFromAddress(senderName, platformFrom),
+      from: formatInvoiceFromAddress(displayName, getPlatformFromEmail()),
       replyTo,
     }
   },

@@ -2,7 +2,6 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentCompanyId } from '@/lib/tenant'
 import type {
   CompanyBrandingInput,
-  CompanyEmailBrandingInput,
   CompanyLocalizationInput,
   CompanyProfileInput,
   CompanySettings,
@@ -99,7 +98,7 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
       supabase
         .from('companies')
         .select(
-          'id, name, business_type, description, email, sender_name, reply_to, phone, website, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url, onboarding_completed_at',
+          'id, name, business_type, description, email, phone, website, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url, onboarding_completed_at',
         )
         .eq('id', companyId)
         .maybeSingle(),
@@ -118,7 +117,7 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
       const fallback = await supabase
         .from('companies')
         .select(
-          'id, name, business_type, email, sender_name, reply_to, phone, website, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url, onboarding_completed_at',
+          'id, name, business_type, email, phone, website, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url, onboarding_completed_at',
         )
         .eq('id', companyId)
         .maybeSingle()
@@ -135,9 +134,6 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
         businessType: fallback.data.business_type ?? '',
         description: '',
         email: fallback.data.email ?? '',
-        senderName:
-          (fallback.data.sender_name as string | null)?.trim() || companyName,
-        replyTo: (fallback.data.reply_to as string | null) ?? '',
         phone: fallback.data.phone ?? '',
         website: fallback.data.website ?? '',
         taxId: fallback.data.tax_id ?? '',
@@ -173,8 +169,6 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
     businessType: company.business_type ?? '',
     description: (company.description as string | null) ?? '',
     email: company.email ?? '',
-    senderName: (company.sender_name as string | null)?.trim() || companyName,
-    replyTo: (company.reply_to as string | null) ?? '',
     phone: company.phone ?? '',
     website: company.website ?? '',
     taxId: company.tax_id ?? '',
@@ -218,10 +212,6 @@ export async function updateCompanySettings(
       postalCode: input.postalCode,
       country: input.country,
       logoUrl: input.logoUrl,
-    }),
-    updateCompanyEmailBranding({
-      senderName: input.senderName,
-      replyTo: input.replyTo,
     }),
     updateCompanyLocalization({
       currency: input.currency,
@@ -288,25 +278,6 @@ export async function updateCompanyProfile(
     }
     throw error
   }
-}
-
-export async function updateCompanyEmailBranding(
-  input: CompanyEmailBrandingInput,
-): Promise<void> {
-  const companyId = await getCurrentCompanyId()
-  const senderName = input.senderName.trim()
-  if (!senderName) throw new Error('Sender name is required.')
-  const replyTo = normalizeOptionalEmail(input.replyTo, 'reply-to email')
-
-  const { error } = await supabase
-    .from('companies')
-    .update({
-      sender_name: senderName,
-      reply_to: emptyToNull(replyTo),
-    })
-    .eq('id', companyId)
-
-  if (error) throw error
 }
 
 export async function updateCompanyLocalization(

@@ -1,10 +1,8 @@
 /**
- * Email transport abstraction.
- * Today: platform Resend via Edge Function.
- * Later: custom domains / per-company Resend without changing the frontend.
+ * Email transport abstraction for the platform Resend Edge Function.
  */
 
-export type EmailTransportKind = 'platform_resend' | 'custom_domain' | 'company_resend'
+export type EmailTransportKind = 'platform_resend'
 
 export type InvoiceEmailDispatchRequest = {
   invoiceId: string

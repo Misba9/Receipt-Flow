@@ -1,7 +1,6 @@
 import { Building2 } from 'lucide-react'
 import { BrandingSettingsCard } from '@/components/settings/BrandingSettingsCard'
 import { CompanyProfileCard } from '@/components/settings/CompanyProfileCard'
-import { EmailBrandingSettingsCard } from '@/components/settings/EmailBrandingSettingsCard'
 import { LocalizationSettingsCard } from '@/components/settings/LocalizationSettingsCard'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Alert, Card, EmptyState, Spinner } from '@/components/ui'
@@ -60,7 +59,6 @@ export function SettingsPage() {
         ) : data ? (
           <>
             <CompanyProfileCard settings={data} />
-            <EmailBrandingSettingsCard settings={data} />
             <LocalizationSettingsCard settings={data} />
             <BrandingSettingsCard settings={data} />
           </>

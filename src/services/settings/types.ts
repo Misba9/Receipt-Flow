@@ -3,18 +3,17 @@ export type ProfileRole = 'owner' | 'admin' | 'member'
 /**
  * Unified per-company settings DTO.
  * Maps to `companies` + `settings` (never exposes Resend API keys).
+ * Invoice From uses company name + the platform EMAIL_FROM mailbox.
+ * Reply-To uses company email when set.
  */
 export type CompanySettings = {
   companyId: string
-  /** companies.name — used in subjects and documents */
+  /** companies.name — used in subjects, documents, and email From display name */
   name: string
   businessType: string
   description: string
+  /** companies.email — also used as invoice Reply-To when set */
   email: string
-  /** companies.sender_name — Resend From display name */
-  senderName: string
-  /** companies.reply_to — optional Reply-To for invoice emails */
-  replyTo: string
   phone: string
   website: string
   taxId: string
@@ -41,8 +40,6 @@ export type CompanySettingsInput = {
   businessType: string
   description: string
   email: string
-  senderName: string
-  replyTo: string
   phone: string
   website: string
   taxId: string
@@ -75,11 +72,6 @@ export type CompanyProfileInput = {
   postalCode: string
   country: string
   logoUrl: string | null
-}
-
-export type CompanyEmailBrandingInput = {
-  senderName: string
-  replyTo: string
 }
 
 export type CompanyLocalizationInput = {

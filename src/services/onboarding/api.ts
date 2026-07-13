@@ -17,8 +17,6 @@ function toSettingsInput(draft: OnboardingDraft, logoUrl: string | null) {
     businessType: draft.businessType.trim(),
     description: '',
     email: companyEmail,
-    senderName: companyName,
-    replyTo: companyEmail,
     phone: draft.phone.trim(),
     website: draft.website.trim(),
     taxId: draft.taxId.trim(),

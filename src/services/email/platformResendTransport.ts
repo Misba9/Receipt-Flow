@@ -6,7 +6,8 @@ import type {
 import { invokeSendInvoiceEmail } from '@/services/invoices/email'
 
 /**
- * Default production transport: one global Resend account (Edge Function secrets).
+ * Production transport: one global Resend account (Edge Function secrets).
+ * Tenants never connect Resend or verify a domain.
  */
 export const platformResendTransport: InvoiceEmailTransport = {
   kind: 'platform_resend',
@@ -29,7 +30,6 @@ export const platformResendTransport: InvoiceEmailTransport = {
   },
 }
 
-/** Active transport — swap here later for custom domains / per-company Resend. */
 export function getInvoiceEmailTransport(): InvoiceEmailTransport {
   return platformResendTransport
 }

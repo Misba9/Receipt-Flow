@@ -17,8 +17,6 @@ npm install
 npm run dev
 ```
 
-
-
 ## Supabase configuration
 
 
@@ -70,9 +68,9 @@ src/
 
 ```bash
 supabase secrets set RESEND_API_KEY=re_xxxxxxxxx
-supabase secrets set EMAIL_FROM=noreply@receiptflow.app
+supabase secrets set EMAIL_FROM=noreply@velonerp.com
 supabase secrets set APP_URL=https://your-domain.com
 supabase functions deploy send-invoice-email
 ```
 
-`EMAIL_FROM` is the single verified mailbox. Each workspace sets its own **Sender name** and optional **Reply-To** in Settings → Email branding.
+`EMAIL_FROM` is the single verified mailbox (e.g. `noreply@velonerp.com`). Invoice emails use the company name as the From display name and the company email as Reply-To when set. Tenants never connect Resend or verify a domain.

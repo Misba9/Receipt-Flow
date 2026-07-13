@@ -1,21 +1,25 @@
 /**
- * Helpers for multi-tenant invoice email branding.
- * Mailbox comes from the platform; display name / reply-to from the company.
+ * Helpers for platform invoice email From headers.
+ * Mailbox is always the global verified domain; display name is the company name.
  */
 
-/** Build a RFC-safe From header: "Display Name" <mailbox@domain> */
+const PLATFORM_DISPLAY_NAME = 'ReceiptFlow'
+const DEFAULT_PLATFORM_FROM = 'noreply@velonerp.com'
+
+/** Build a RFC-safe From header: "Company Name" <noreply@velonerp.com> */
 export function formatInvoiceFromAddress(
-  senderName: string,
-  fromEmail: string,
+  companyName: string,
+  fromEmail: string = DEFAULT_PLATFORM_FROM,
 ): string {
-  const name = senderName.trim()
-  const email = fromEmail.trim().toLowerCase()
+  const name = companyName.trim() || PLATFORM_DISPLAY_NAME
+  const email = fromEmail.trim().toLowerCase() || DEFAULT_PLATFORM_FROM
   const escaped = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
   return `"${escaped}" <${email}>`
 }
 
-export function buildInvoiceEmailSubject(companyName: string): string {
-  const name = companyName.trim()
-  if (!name) throw new Error('Company name is required for the email subject.')
-  return `Invoice from ${name}`
+export function getPlatformFromEmail(): string {
+  return (
+    (import.meta.env.VITE_EMAIL_FROM as string | undefined)?.trim() ||
+    DEFAULT_PLATFORM_FROM
+  )
 }

@@ -1,16 +1,16 @@
 /**
- * Sends an invoice email via Resend using one verified platform mailbox
- * and per-company display name / reply-to branding.
+ * Sends an invoice email via one global Resend account + verified domain.
+ * Tenants never configure Resend, DNS, or a sending domain.
  *
  * Platform secrets only (never per-tenant keys):
  *   RESEND_API_KEY   — global Resend account
- *   EMAIL_FROM       — verified mailbox only, e.g. noreply@receiptflow.app
+ *   EMAIL_FROM       — verified mailbox, e.g. noreply@velonerp.com
  *                      (RESEND_FROM_EMAIL still accepted as a fallback)
  *   APP_URL
  *
- * From header:  "{companies.sender_name} <EMAIL_FROM>"
- * Reply-To:     companies.reply_to (omitted when empty)
- * Subject:      Invoice from {companies.name}
+ * From header:  "{companies.name || ReceiptFlow} <EMAIL_FROM>"
+ * Reply-To:     companies.email (omitted when empty)
+ * Subject:      Invoice from {companies.name || ReceiptFlow}
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
@@ -53,43 +53,54 @@ type SendInvoiceEmailRequest = {
 }
 
 const FRIENDLY_SEND_ERROR = 'Unable to send email. Please try again later.'
+const PLATFORM_DISPLAY_NAME = 'ReceiptFlow'
+const DEFAULT_PLATFORM_FROM = 'noreply@velonerp.com'
 
 type CompanyEmailRow = {
   name: string
-  sender_name: string | null
-  reply_to: string | null
   email: string | null
   phone: string | null
   website: string | null
   tax_id: string | null
 }
 
-/** Extract the verified mailbox from EMAIL_FROM / RESEND_FROM_EMAIL. */
-function resolveVerifiedFromEmail(): string {
+/** Extract the platform verified mailbox from EMAIL_FROM / RESEND_FROM_EMAIL. */
+function resolvePlatformFromEmail(): string {
   const raw = (
     Deno.env.get('EMAIL_FROM') ??
     Deno.env.get('RESEND_FROM_EMAIL') ??
-    ''
+    DEFAULT_PLATFORM_FROM
   ).trim()
 
   if (!raw) {
     throw new Error(
-      'EMAIL_FROM is empty. Set EMAIL_FROM=noreply@yourdomain.com',
+      `EMAIL_FROM is empty. Set EMAIL_FROM=${DEFAULT_PLATFORM_FROM}`,
     )
   }
 
   const angled = raw.match(/<([^>]+)>/)
   const email = (angled ? angled[1] : raw).trim().toLowerCase()
   if (!isValidEmail(email)) {
-    throw new Error('EMAIL_FROM must be a valid email address.')
+    throw new Error(
+      `EMAIL_FROM must be a valid email address (e.g. ${DEFAULT_PLATFORM_FROM}).`,
+    )
   }
   return email
 }
 
-/** RFC-safe From: "Display Name" <mailbox@domain> */
-function formatFromAddress(senderName: string, fromEmail: string): string {
-  const escaped = senderName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+/** RFC-safe From: "Display Name" <mailbox@platform-domain> */
+function formatFromAddress(displayName: string, fromEmail: string): string {
+  const escaped = displayName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
   return `"${escaped}" <${fromEmail}>`
+}
+
+/** Never surface Resend domain-verification errors to tenants. */
+function toClientSendError(message: string): string {
+  if (isIdempotencyConflict(message)) return FRIENDLY_SEND_ERROR
+  if (/domain is not verified|not verified|verify.*(domain|dns)/i.test(message)) {
+    return FRIENDLY_SEND_ERROR
+  }
+  return message || FRIENDLY_SEND_ERROR
 }
 
 function formatMoney(amount: number, currency: string) {
@@ -431,14 +442,14 @@ Deno.serve(async (req) => {
       return fail('Email is not configured. Set RESEND_API_KEY secret.', 500)
     }
 
-    let verifiedFromEmail: string
+    let platformFromEmail: string
     try {
-      verifiedFromEmail = resolveVerifiedFromEmail()
+      platformFromEmail = resolvePlatformFromEmail()
     } catch (error) {
       return fail(
         error instanceof Error
           ? error.message
-          : 'EMAIL_FROM is not configured.',
+          : `EMAIL_FROM is not configured. Set EMAIL_FROM=${DEFAULT_PLATFORM_FROM}`,
         500,
       )
     }
@@ -542,7 +553,7 @@ Deno.serve(async (req) => {
       await Promise.all([
         supabase
           .from('companies')
-          .select('name, sender_name, reply_to, email, phone, website, tax_id')
+          .select('name, email, phone, website, tax_id')
           .eq('id', callerCompanyId)
           .maybeSingle(),
         supabase
@@ -558,23 +569,16 @@ Deno.serve(async (req) => {
 
     const companyRow = company as CompanyEmailRow
     const companyName = (companyRow.name ?? '').trim()
-    if (!companyName) {
-      return fail('Company name is missing. Update company settings.', 422)
-    }
+    const displayName = companyName || PLATFORM_DISPLAY_NAME
 
-    const senderName = (companyRow.sender_name ?? '').trim() || companyName
-    if (!senderName) {
-      return fail('Sender name is missing. Update company settings.', 422)
-    }
-
-    const replyToRaw = (companyRow.reply_to ?? '').trim().toLowerCase()
+    const replyToRaw = (companyRow.email ?? '').trim().toLowerCase()
     if (replyToRaw && !isValidEmail(replyToRaw)) {
-      return fail('Reply-To email is invalid. Update company settings.', 422)
+      return fail('Company email is invalid. Update company settings.', 422)
     }
 
     const brandColor = settings?.primary_color ?? '#1a73f5'
-    const fromAddress = formatFromAddress(senderName, verifiedFromEmail)
-    const subject = `Invoice from ${companyName}`
+    const fromAddress = formatFromAddress(displayName, platformFromEmail)
+    const subject = `Invoice from ${displayName}`
 
     const { data: pdfFile, error: pdfError } = await admin.storage
       .from('invoice-pdfs')
@@ -588,7 +592,7 @@ Deno.serve(async (req) => {
     const attachmentName = `${row.invoice_number}.pdf`
 
     const html = buildInvoiceEmailHtml({
-      companyName,
+      companyName: displayName,
       companyEmail: companyRow.email,
       companyPhone: companyRow.phone,
       customerName: row.customer?.name ?? 'Customer',
@@ -605,7 +609,7 @@ Deno.serve(async (req) => {
     })
 
     const text = buildInvoiceEmailText({
-      companyName,
+      companyName: displayName,
       customerName: row.customer?.name ?? 'Customer',
       invoiceNumber: row.invoice_number,
       total: Number(row.total),
@@ -658,11 +662,10 @@ Deno.serve(async (req) => {
         sendMode,
       })
 
-      const clientMessage = isIdempotencyConflict(sendResult.message)
-        ? FRIENDLY_SEND_ERROR
-        : sendResult.message
-
-      return fail(clientMessage, sendResult.status >= 500 ? 502 : 400)
+      return fail(
+        toClientSendError(sendResult.message),
+        sendResult.status >= 500 ? 502 : 400,
+      )
     }
 
     const sent = sendResult.body

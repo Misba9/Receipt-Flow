@@ -3,7 +3,6 @@ import {
   fetchCompanySettings,
   removeCompanyLogo,
   updateCompanyBranding,
-  updateCompanyEmailBranding,
   updateCompanyLocalization,
   updateCompanyProfile,
   updateCompanySettings,
@@ -11,7 +10,6 @@ import {
 } from '@/services/settings/api'
 import type {
   CompanyBrandingInput,
-  CompanyEmailBrandingInput,
   CompanyLocalizationInput,
   CompanyProfileInput,
   CompanySettingsInput,
@@ -43,6 +41,9 @@ export function useCompanySettings() {
     queryKey: settingsKeys.company(),
     queryFn: fetchCompanySettings,
     enabled: isAuthenticated && !authLoading,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -60,16 +61,6 @@ export function useUpdateCompanyProfile() {
 
   return useMutation({
     mutationFn: (input: CompanyProfileInput) => updateCompanyProfile(input),
-    onSuccess: () => invalidateSettingsCaches(queryClient),
-  })
-}
-
-export function useUpdateCompanyEmailBranding() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (input: CompanyEmailBrandingInput) =>
-      updateCompanyEmailBranding(input),
     onSuccess: () => invalidateSettingsCaches(queryClient),
   })
 }

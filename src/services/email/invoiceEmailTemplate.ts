@@ -127,7 +127,6 @@ export function buildInvoiceEmailHtml(input: BuildInvoiceEmailInput): string {
 }
 
 export function buildInvoiceEmailSubject(companyName: string): string {
-  const name = companyName.trim()
-  if (!name) return 'Invoice'
+  const name = companyName.trim() || 'ReceiptFlow'
   return `Invoice from ${name}`
 }

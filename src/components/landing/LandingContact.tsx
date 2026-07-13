@@ -41,7 +41,7 @@ export function LandingContact() {
       ].join('\n'),
     )
 
-    window.location.href = `mailto:hello@receiptflow.app?subject=${subject}&body=${body}`
+    window.location.href = `mailto:hello@velonerp.com?subject=${subject}&body=${body}`
     setSubmitted(true)
   }
 
@@ -66,10 +66,10 @@ export function LandingContact() {
           <p className="mt-8 text-sm text-surface-500">
             Prefer email directly?{' '}
             <a
-              href="mailto:hello@receiptflow.app"
+              href="mailto:hello@velonerp.com"
               className="font-medium text-brand-700 hover:underline"
             >
-              hello@receiptflow.app
+              hello@velonerp.com
             </a>
           </p>
         </div>
@@ -84,10 +84,10 @@ export function LandingContact() {
               Thanks — your mail client should open with the message ready to
               send. If it does not, email{' '}
               <a
-                href="mailto:hello@receiptflow.app"
+                href="mailto:hello@velonerp.com"
                 className="font-medium text-brand-700 hover:underline"
               >
-                hello@receiptflow.app
+                hello@velonerp.com
               </a>
               .
             </p>
