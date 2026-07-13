@@ -1,0 +1,82 @@
+{
+  "generatedAt": "2026-07-13T14:34:07.454Z",
+  "widths": [
+    480,
+    768,
+    1200
+  ],
+  "og": {
+    "alt": "Billing Software for Small Businesses | ReceiptFlow",
+    "width": 1200,
+    "height": 630,
+    "webp": "/og-image.webp",
+    "fallback": "/og-image.jpg",
+    "srcSetWebp": "/og-image-480.webp 480w, /og-image-768.webp 768w, /og-image-1200.webp 1200w",
+    "srcSetJpeg": "/og-image-480.jpg 480w, /og-image-768.jpg 768w, /og-image-1200.jpg 1200w"
+  },
+  "blog": {
+    "accounting-basics": {
+      "width": 1200,
+      "height": 630,
+      "svg": "/blog/accounting-basics.svg",
+      "webp": "/blog/accounting-basics.webp",
+      "fallback": "/blog/accounting-basics-1200.jpg",
+      "srcSetWebp": "/blog/accounting-basics-480.webp 480w, /blog/accounting-basics-768.webp 768w, /blog/accounting-basics-1200.webp 1200w",
+      "srcSetJpeg": "/blog/accounting-basics-480.jpg 480w, /blog/accounting-basics-768.jpg 768w, /blog/accounting-basics-1200.jpg 1200w"
+    },
+    "billing-software-guide": {
+      "width": 1200,
+      "height": 630,
+      "svg": "/blog/billing-software-guide.svg",
+      "webp": "/blog/billing-software-guide.webp",
+      "fallback": "/blog/billing-software-guide-1200.jpg",
+      "srcSetWebp": "/blog/billing-software-guide-480.webp 480w, /blog/billing-software-guide-768.webp 768w, /blog/billing-software-guide-1200.webp 1200w",
+      "srcSetJpeg": "/blog/billing-software-guide-480.jpg 480w, /blog/billing-software-guide-768.jpg 768w, /blog/billing-software-guide-1200.jpg 1200w"
+    },
+    "email-invoices": {
+      "width": 1200,
+      "height": 630,
+      "svg": "/blog/email-invoices.svg",
+      "webp": "/blog/email-invoices.webp",
+      "fallback": "/blog/email-invoices-1200.jpg",
+      "srcSetWebp": "/blog/email-invoices-480.webp 480w, /blog/email-invoices-768.webp 768w, /blog/email-invoices-1200.webp 1200w",
+      "srcSetJpeg": "/blog/email-invoices-480.jpg 480w, /blog/email-invoices-768.jpg 768w, /blog/email-invoices-1200.jpg 1200w"
+    },
+    "gst-vs-non-gst-invoices": {
+      "width": 1200,
+      "height": 630,
+      "svg": "/blog/gst-vs-non-gst-invoices.svg",
+      "webp": "/blog/gst-vs-non-gst-invoices.webp",
+      "fallback": "/blog/gst-vs-non-gst-invoices-1200.jpg",
+      "srcSetWebp": "/blog/gst-vs-non-gst-invoices-480.webp 480w, /blog/gst-vs-non-gst-invoices-768.webp 768w, /blog/gst-vs-non-gst-invoices-1200.webp 1200w",
+      "srcSetJpeg": "/blog/gst-vs-non-gst-invoices-480.jpg 480w, /blog/gst-vs-non-gst-invoices-768.jpg 768w, /blog/gst-vs-non-gst-invoices-1200.jpg 1200w"
+    },
+    "how-to-create-gst-invoice": {
+      "width": 1200,
+      "height": 630,
+      "svg": "/blog/how-to-create-gst-invoice.svg",
+      "webp": "/blog/how-to-create-gst-invoice.webp",
+      "fallback": "/blog/how-to-create-gst-invoice-1200.jpg",
+      "srcSetWebp": "/blog/how-to-create-gst-invoice-480.webp 480w, /blog/how-to-create-gst-invoice-768.webp 768w, /blog/how-to-create-gst-invoice-1200.webp 1200w",
+      "srcSetJpeg": "/blog/how-to-create-gst-invoice-480.jpg 480w, /blog/how-to-create-gst-invoice-768.jpg 768w, /blog/how-to-create-gst-invoice-1200.jpg 1200w"
+    },
+    "invoice-numbering": {
+      "width": 1200,
+      "height": 630,
+      "svg": "/blog/invoice-numbering.svg",
+      "webp": "/blog/invoice-numbering.webp",
+      "fallback": "/blog/invoice-numbering-1200.jpg",
+      "srcSetWebp": "/blog/invoice-numbering-480.webp 480w, /blog/invoice-numbering-768.webp 768w, /blog/invoice-numbering-1200.webp 1200w",
+      "srcSetJpeg": "/blog/invoice-numbering-480.jpg 480w, /blog/invoice-numbering-768.jpg 768w, /blog/invoice-numbering-1200.jpg 1200w"
+    },
+    "track-payments": {
+      "width": 1200,
+      "height": 630,
+      "svg": "/blog/track-payments.svg",
+      "webp": "/blog/track-payments.webp",
+      "fallback": "/blog/track-payments-1200.jpg",
+      "srcSetWebp": "/blog/track-payments-480.webp 480w, /blog/track-payments-768.webp 768w, /blog/track-payments-1200.webp 1200w",
+      "srcSetJpeg": "/blog/track-payments-480.jpg 480w, /blog/track-payments-768.jpg 768w, /blog/track-payments-1200.jpg 1200w"
+    }
+  }
+}

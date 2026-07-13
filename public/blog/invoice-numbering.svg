@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Invoice Numbering">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4c1d95"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <circle cx="980" cy="120" r="180" fill="#c4b5fd" fill-opacity="0.18"/>
+  <circle cx="180" cy="520" r="220" fill="#c4b5fd" fill-opacity="0.12"/>
+  <rect x="80" y="160" width="520" height="320" rx="24" fill="#fff" fill-opacity="0.08" stroke="#c4b5fd" stroke-opacity="0.35"/>
+  <rect x="120" y="210" width="280" height="18" rx="9" fill="#c4b5fd" fill-opacity="0.85"/>
+  <rect x="120" y="250" width="400" height="12" rx="6" fill="#fff" fill-opacity="0.35"/>
+  <rect x="120" y="280" width="360" height="12" rx="6" fill="#fff" fill-opacity="0.25"/>
+  <rect x="120" y="310" width="300" height="12" rx="6" fill="#fff" fill-opacity="0.2"/>
+  <text x="80" y="120" fill="#fff" font-family="Sora, DM Sans, sans-serif" font-size="42" font-weight="600">Invoice Numbering</text>
+  <text x="80" y="560" fill="#fff" fill-opacity="0.55" font-family="DM Sans, sans-serif" font-size="22">ReceiptFlow Blog</text>
+</svg>

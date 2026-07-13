@@ -5,11 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "prebuild": "npm run generate:route-meta && npm run sitemap",
+    "build": "tsc -b && vite build && npm run prerender",
+    "prerender": "node scripts/prerender-meta.mjs",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings 0",
+    "validate:jsonld": "vite-node scripts/validate-jsonld.ts",
     "preview": "vite preview",
-    "bootstrap:admin": "node scripts/bootstrap-super-admin.mjs"
+    "bootstrap:admin": "node scripts/bootstrap-super-admin.mjs",
+    "optimize:images": "node scripts/optimize-images.mjs",
+    "sitemap": "node scripts/generate-sitemap.mjs",
+    "sitemap:images": "node scripts/generate-image-sitemap.mjs",
+    "generate:route-meta": "node scripts/generate-route-meta.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -40,6 +47,7 @@
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
     "prettier": "^3.9.5",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4.3.2",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.63.0",

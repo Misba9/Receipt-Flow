@@ -234,7 +234,11 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
               {settings.logoUrl ? (
                 <img
                   src={settings.logoUrl}
-                  alt={settings.name}
+                  alt={`${settings.name || 'Company'} logo`}
+                  width={96}
+                  height={96}
+                  loading="lazy"
+                  decoding="async"
                   className="h-full w-full object-contain p-2"
                 />
               ) : (

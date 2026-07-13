@@ -2,42 +2,132 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ReceiptFlow — Invoices &amp; receipts for growing teams</title>
+
+    <title>Billing Software for Small Businesses | ReceiptFlow</title>
     <meta
       name="description"
-      content="ReceiptFlow is multi-tenant invoicing software for small businesses. Create branded invoices, track payments, email PDFs, and run sales reports — securely by company."
+      content="ReceiptFlow is billing software for small businesses. Create invoices, manage GST billing, track customers online, and email PDF receipts from one secure workspace."
     />
+    <meta
+      name="keywords"
+      content="Billing Software for Small Businesses, Invoice Software, GST Billing Software, Online Billing Software, Customer Management Software, ReceiptFlow"
+    />
+    <meta name="author" content="ReceiptFlow" />
+    <meta name="application-name" content="ReceiptFlow" />
     <meta name="theme-color" content="#1a73f5" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="robots" content="index, follow" />
+    <meta name="googlebot" content="index, follow" />
+    <meta name="format-detection" content="telephone=no, address=no, email=no" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
 
+    <link rel="canonical" href="https://receiptflow.velonerp.com/" />
+
+    <!--
+      Search Console verification: set VITE_GOOGLE_SITE_VERIFICATION and
+      VITE_BING_SITE_VERIFICATION (injected at runtime by useDocumentMeta).
+      Do not ship REPLACE_* placeholders in production HTML.
+    -->
+
+    <!-- Icons -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.svg" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="ReceiptFlow" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="ReceiptFlow" />
+    <meta property="og:locale" content="en_US" />
     <meta
       property="og:title"
-      content="ReceiptFlow — Invoices &amp; receipts for growing teams"
+      content="Billing Software for Small Businesses | ReceiptFlow"
     />
     <meta
       property="og:description"
-      content="Create branded invoices, track payments, email PDFs, and run sales reports. Built for multi-tenant teams with secure company isolation."
+      content="Online billing and invoice software with GST support, customer management, and branded PDF emails — built for small business teams."
     />
+    <meta property="og:url" content="https://receiptflow.velonerp.com/" />
+    <meta
+      property="og:image"
+      content="https://receiptflow.velonerp.com/og-image.jpg"
+    />
+    <meta
+      property="og:image:secure_url"
+      content="https://receiptflow.velonerp.com/og-image.jpg"
+    />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Billing Software for Small Businesses | ReceiptFlow"
+    />
+
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
-      content="ReceiptFlow — Invoices &amp; receipts for growing teams"
+      content="Billing Software for Small Businesses | ReceiptFlow"
     />
     <meta
       name="twitter:description"
-      content="Create branded invoices, track payments, email PDFs, and run sales reports."
+      content="Online billing and invoice software with GST support, customer management, and branded PDF emails."
+    />
+    <meta
+      name="twitter:image"
+      content="https://receiptflow.velonerp.com/og-image.jpg"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="Billing Software for Small Businesses | ReceiptFlow"
     />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Critical text styles for first paint (LCP) before CSS bundle -->
+    <style>
+      html {
+        background: #020617;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family:
+          'DM Sans Fallback',
+          ui-sans-serif,
+          system-ui,
+          sans-serif;
+      }
+      #root {
+        min-height: 100vh;
+      }
+    </style>
+    <!-- Non-blocking fonts: fewer weights + display=swap -->
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Sora:wght@500;600;700&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Sora:wght@600;700&display=swap"
     />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Sora:wght@600;700&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Sora:wght@600;700&display=swap"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

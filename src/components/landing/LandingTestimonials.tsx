@@ -1,23 +1,4 @@
-const testimonials = [
-  {
-    quote:
-      'We stopped chasing PDFs in email threads. Customers get a clean invoice and we know when it is paid.',
-    name: 'Maya Chen',
-    role: 'Founder, Harbor Studio',
-  },
-  {
-    quote:
-      'Multi-tenant from day one meant our agencies never see each other’s data. That was non-negotiable.',
-    name: 'James Okonkwo',
-    role: 'Ops lead, Ledger Collective',
-  },
-  {
-    quote:
-      'Reports and CSV export closed our month-end in half the time. The UI stays out of the way.',
-    name: 'Sofia Alvarez',
-    role: 'Finance, Northbeam Co.',
-  },
-]
+import { testimonials } from '@/components/landing/testimonials'
 
 export function LandingTestimonials() {
   return (
@@ -32,11 +13,11 @@ export function LandingTestimonials() {
             id="testimonials-heading"
             className="font-display text-3xl font-semibold tracking-tight text-surface-950 sm:text-4xl"
           >
-            Trusted by teams who bill every week
+            Trusted by small businesses using online billing software
           </h2>
           <p className="mt-3 text-base text-surface-600 sm:text-lg">
-            Operators and founders use ReceiptFlow to keep invoicing calm and
-            accountable.
+            Operators and founders use ReceiptFlow invoice software to keep GST
+            billing and customer management calm and accountable.
           </p>
         </div>
 

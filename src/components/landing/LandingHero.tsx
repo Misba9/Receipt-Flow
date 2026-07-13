@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { APP_NAME } from '@/utils'
 import { paths } from '@/lib/paths'
+import { LANDING_SEO } from '@/components/landing/landing-seo'
 
 export function LandingHero() {
   return (
@@ -9,7 +10,6 @@ export function LandingHero() {
       className="relative isolate overflow-x-hidden bg-surface-950 text-white"
       aria-labelledby="hero-heading"
     >
-      {/* Atmosphere */}
       <div
         className="animate-landing-pan absolute inset-0 bg-[radial-gradient(ellipse_at_15%_0%,#1a73f5_0%,transparent_42%),radial-gradient(ellipse_at_85%_15%,#0284c8_0%,transparent_38%),linear-gradient(180deg,#020617_0%,#0b1220_40%,#0c4a6e_100%)]"
         aria-hidden
@@ -21,22 +21,20 @@ export function LandingHero() {
 
       <div className="relative mx-auto flex min-h-[100svh] max-w-6xl flex-col px-4 pt-24 sm:px-6 sm:pt-28 lg:pt-32">
         <div className="flex flex-1 flex-col justify-center py-8 sm:py-10 lg:max-w-2xl lg:py-12">
-          <p className="animate-landing-fade-up font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
+          <p className="font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
             {APP_NAME}
           </p>
           <h1
             id="hero-heading"
-            className="animate-landing-fade-up mt-4 max-w-2xl text-lg leading-snug font-medium text-white/95 sm:mt-5 sm:text-2xl md:text-3xl"
-            style={{ animationDelay: '90ms' }}
+            className="mt-4 max-w-2xl text-lg leading-snug font-medium text-white/95 sm:mt-5 sm:text-2xl md:text-3xl"
           >
-            Invoices that look like your brand — sent and tracked in one place.
+            {LANDING_SEO.h1}
           </h1>
           <p
             className="animate-landing-fade-up mt-3 max-w-lg text-sm leading-relaxed text-white/70 sm:mt-4 sm:text-base md:text-lg"
             style={{ animationDelay: '170ms' }}
           >
-            Create, send, and track receipts for every customer in one secure
-            workspace built for multi-tenant teams.
+            {LANDING_SEO.heroSupport}
           </p>
           <div
             className="animate-landing-fade-up mt-6 flex flex-wrap items-center gap-3 sm:mt-8"
@@ -46,18 +44,38 @@ export function LandingHero() {
               to={paths.register}
               className="inline-flex h-11 items-center justify-center rounded-lg bg-white px-5 text-sm font-semibold text-surface-950 transition-colors hover:bg-brand-50"
             >
-              Get started
+              Start free billing
             </Link>
             <a
-              href="#details"
+              href="#features"
               className="inline-flex h-11 items-center justify-center rounded-lg border border-white/25 bg-white/5 px-5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/10"
             >
-              Project details
+              Explore invoice software
             </a>
           </div>
+          <p
+            className="animate-landing-fade-up mt-5 text-xs text-white/50 sm:text-sm"
+            style={{ animationDelay: '320ms' }}
+          >
+            Includes{' '}
+            <a href="#gst-billing" className="underline-offset-2 hover:underline">
+              GST billing
+            </a>
+            ,{' '}
+            <a
+              href="#customer-management"
+              className="underline-offset-2 hover:underline"
+            >
+              customer management
+            </a>
+            , and{' '}
+            <a href="#online-billing" className="underline-offset-2 hover:underline">
+              online invoicing
+            </a>
+            .
+          </p>
         </div>
 
-        {/* Product preview — no monetary amounts */}
         <div
           className="relative mt-6 w-full border-t border-white/10 bg-white text-surface-900 sm:mt-8"
           aria-hidden

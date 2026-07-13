@@ -7,7 +7,7 @@ export const paths = {
   invoiceNew: '/invoices/new',
   invoiceDetail: (id: string) => `/invoices/${id}`,
   invoiceEdit: (id: string) => `/invoices/${id}/edit`,
-  reports: '/reports',
+  reports: '/app/reports',
   receipts: '/receipts',
   settings: '/settings',
   onboarding: '/onboarding',
@@ -20,6 +20,10 @@ export const paths = {
   register: '/register',
   forgotPassword: '/forgot-password',
   resetPassword: '/reset-password',
+  blog: '/blog',
+  blogCategory: (slug: string) => `/blog/category/${slug}`,
+  article: (slug: string) => `/article/${slug}`,
+  tools: '/tools',
 } as const
 
 export type AppPath = string

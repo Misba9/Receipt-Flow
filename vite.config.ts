@@ -14,7 +14,10 @@ export default defineConfig({
     target: 'es2022',
     cssCodeSplit: true,
     sourcemap: false,
-    chunkSizeWarningLimit: 1100,
+    modulePreload: {
+      polyfill: false,
+    },
+    chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -31,6 +34,11 @@ export default defineConfig({
           if (id.includes('pdf-lib')) return 'pdf'
           if (id.includes('@supabase')) return 'supabase'
           if (id.includes('@tanstack')) return 'query'
+          if (id.includes('zod')) return 'zod'
+          if (id.includes('react-hook-form') || id.includes('@hookform')) {
+            return 'forms'
+          }
+          if (id.includes('lucide-react')) return 'icons'
           if (
             id.includes('react-dom') ||
             id.includes('react-router') ||

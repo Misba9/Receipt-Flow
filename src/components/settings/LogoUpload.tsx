@@ -51,7 +51,11 @@ export function LogoUpload({
           {value ? (
             <img
               src={value}
-              alt="Company logo"
+              alt="Company logo preview"
+              width={96}
+              height={96}
+              loading="lazy"
+              decoding="async"
               className="h-full w-full object-contain p-2"
             />
           ) : (

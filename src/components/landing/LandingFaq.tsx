@@ -1,6 +1,8 @@
 import { useId, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { faqItems } from '@/components/landing/faq-data'
+import { paths } from '@/lib/paths'
 import { cn } from '@/utils'
 
 export function LandingFaq() {
@@ -14,15 +16,18 @@ export function LandingFaq() {
       aria-labelledby="faq-heading"
     >
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
-        <h2
-          id="faq-heading"
-          className="font-display text-3xl font-semibold tracking-tight text-surface-950 sm:text-4xl"
-        >
-          Frequently asked questions
-        </h2>
-        <p className="mt-3 text-base text-surface-600 sm:text-lg">
-          Straight answers about security, billing workflows, and access.
-        </p>
+        <header>
+          <h2
+            id="faq-heading"
+            className="font-display text-3xl font-semibold tracking-tight text-surface-950 sm:text-4xl"
+          >
+            Billing software FAQ
+          </h2>
+          <p className="mt-3 text-base text-surface-600 sm:text-lg">
+            Answers about invoice software, GST billing, online billing, and
+            customer management for small businesses.
+          </p>
+        </header>
 
         <div className="mt-10 divide-y divide-surface-200 border-y border-surface-200">
           {faqItems.map((item, index) => {
@@ -76,6 +81,25 @@ export function LandingFaq() {
             )
           })}
         </div>
+
+        <p className="mt-8 text-sm text-surface-600">
+          Still deciding?{' '}
+          <a href="#features" className="font-medium text-brand-700 hover:underline">
+            Browse invoice software features
+          </a>
+          ,{' '}
+          <a href="#get-started" className="font-medium text-brand-700 hover:underline">
+            see pricing-free signup
+          </a>
+          , or{' '}
+          <Link
+            to={paths.register}
+            className="font-medium text-brand-700 hover:underline"
+          >
+            create your account
+          </Link>
+          .
+        </p>
       </div>
     </section>
   )

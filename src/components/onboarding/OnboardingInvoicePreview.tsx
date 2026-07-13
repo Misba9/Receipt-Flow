@@ -19,7 +19,11 @@ export function OnboardingInvoicePreview({ draft }: OnboardingInvoicePreviewProp
             {draft.logoUrl ? (
               <img
                 src={draft.logoUrl}
-                alt={company}
+                alt={`${company} logo`}
+                width={40}
+                height={40}
+                loading="lazy"
+                decoding="async"
                 className="h-10 w-10 rounded-lg object-contain"
               />
             ) : (

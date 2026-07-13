@@ -3,6 +3,25 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "trailingSlash": false,
+  "cleanUrls": true,
+  "redirects": [
+    { "source": "/home", "destination": "/", "permanent": true },
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    { "source": "/app", "destination": "/dashboard", "permanent": true },
+    { "source": "/receipts", "destination": "/invoices", "permanent": true },
+    { "source": "/sales-reports", "destination": "/reports", "permanent": true },
+    { "source": "/signin", "destination": "/login", "permanent": true },
+    { "source": "/sign-in", "destination": "/login", "permanent": true },
+    { "source": "/signup", "destination": "/register", "permanent": true },
+    { "source": "/sign-up", "destination": "/register", "permanent": true },
+    { "source": "/pricing.html", "destination": "/pricing", "permanent": true },
+    { "source": "/compare", "destination": "/comparisons", "permanent": true },
+    { "source": "/comparison", "destination": "/comparisons", "permanent": true },
+    { "source": "/gst-billing", "destination": "/gst-billing-software", "permanent": true },
+    { "source": "/invoice", "destination": "/invoice-software", "permanent": true },
+    { "source": "/billing-software", "destination": "/features", "permanent": true }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
@@ -53,7 +72,7 @@
       ]
     },
     {
-      "source": "/(favicon.svg|robots.txt|sitemap.xml|icons.svg)",
+      "source": "/(favicon.svg|robots.txt|sitemap.xml|sitemap-index.xml|sitemap-images.xml|manifest.json|apple-touch-icon.png|og-image.jpg|icons.svg)",
       "headers": [
         {
           "key": "Cache-Control",

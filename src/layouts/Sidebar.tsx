@@ -138,7 +138,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             {!isAdminConsole && company?.logoUrl ? (
               <img
                 src={company.logoUrl}
-                alt={companyName}
+                alt={`${companyName} logo`}
+                width={36}
+                height={36}
+                loading="lazy"
+                decoding="async"
                 className="h-9 w-9 rounded-xl object-contain"
               />
             ) : (

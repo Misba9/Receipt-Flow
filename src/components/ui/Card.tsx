@@ -37,19 +37,21 @@ export function CardHeader({
 export function CardTitle({
   children,
   className,
+  as: Tag = 'h3',
 }: {
   children: ReactNode
   className?: string
+  as?: 'h1' | 'h2' | 'h3'
 }) {
   return (
-    <h3
+    <Tag
       className={cn(
         'text-base font-semibold text-surface-900 dark:text-surface-50',
         className,
       )}
     >
       {children}
-    </h3>
+    </Tag>
   )
 }
 

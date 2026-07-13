@@ -57,11 +57,23 @@ export function LandingContact() {
             id="contact-heading"
             className="font-display text-3xl font-semibold tracking-tight text-surface-950 sm:text-4xl"
           >
-            Talk with us
+            Talk about billing for your business
           </h2>
           <p className="mt-3 text-base leading-relaxed text-surface-600 sm:text-lg">
-            Questions about Business plans, migrations, or multi-company
-            rollouts? Send a note — we reply within one business day.
+            Questions about invoice software, GST billing, migrations, or
+            multi-company rollouts? Send a note — we reply within one business
+            day.
+          </p>
+          <p className="mt-6 text-sm text-surface-600">
+            Or{' '}
+            <a href="/register" className="font-medium text-brand-700 hover:underline">
+              start online billing now
+            </a>{' '}
+            and explore{' '}
+            <a href="/features" className="font-medium text-brand-700 hover:underline">
+              billing features
+            </a>
+            .
           </p>
           <p className="mt-8 text-sm text-surface-500">
             Prefer email directly?{' '}

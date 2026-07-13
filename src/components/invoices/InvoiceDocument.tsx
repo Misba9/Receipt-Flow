@@ -21,7 +21,11 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
             {company?.logoUrl ? (
               <img
                 src={company.logoUrl}
-                alt={company.name}
+                alt={`${company.name || 'Company'} logo`}
+                width={56}
+                height={56}
+                loading="lazy"
+                decoding="async"
                 className="h-12 w-12 shrink-0 rounded-lg object-contain sm:h-14 sm:w-14"
               />
             ) : null}

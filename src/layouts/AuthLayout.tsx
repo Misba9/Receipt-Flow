@@ -51,7 +51,9 @@ export function AuthLayout({
             <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-surface-400">
               {APP_NAME}
             </p>
-            <CardTitle className="text-xl sm:text-2xl">{title}</CardTitle>
+            <CardTitle as="h1" className="text-xl sm:text-2xl">
+              {title}
+            </CardTitle>
             <CardDescription className="mt-1.5 text-sm leading-relaxed">
               {description}
             </CardDescription>

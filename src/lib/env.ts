@@ -32,6 +32,10 @@ export const env = {
   ).replace(/\/$/, ''),
   isProd: import.meta.env.PROD,
   isDev: import.meta.env.DEV,
+  googleSiteVerification:
+    import.meta.env.VITE_GOOGLE_SITE_VERIFICATION?.trim() || '',
+  bingSiteVerification:
+    import.meta.env.VITE_BING_SITE_VERIFICATION?.trim() || '',
 } as const
 
 /** True when credentials look like real project values (not .env.example placeholders). */

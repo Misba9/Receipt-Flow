@@ -3,8 +3,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Sora', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'DM Sans', 'DM Sans Fallback', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Sora', 'Sora Fallback', 'DM Sans', ui-sans-serif, system-ui,
+    sans-serif;
 
   --color-brand-50: #eef8ff;
   --color-brand-100: #d9eeff;
@@ -33,9 +34,28 @@
 }
 
 @layer base {
+  @font-face {
+    font-family: 'DM Sans Fallback';
+    src: local('Arial');
+    size-adjust: 103%;
+    ascent-override: 95%;
+    descent-override: 22%;
+    line-gap-override: 0%;
+  }
+
+  @font-face {
+    font-family: 'Sora Fallback';
+    src: local('Arial');
+    size-adjust: 100%;
+    ascent-override: 92%;
+    descent-override: 22%;
+    line-gap-override: 0%;
+  }
+
   html {
     @apply antialiased;
     overflow-x: clip;
+    text-rendering: optimizeLegibility;
   }
 
   body {
@@ -113,5 +133,15 @@
 
   .animate-landing-rise {
     animation: landing-rise 0.8s ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-landing-fade-up,
+    .animate-landing-pan,
+    .animate-landing-rise {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
   }
 }
