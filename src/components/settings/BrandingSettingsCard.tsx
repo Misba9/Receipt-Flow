@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { ColorField } from '@/components/settings/ColorField'
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard'
 import { Alert } from '@/components/ui/Alert'
@@ -7,11 +8,13 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { useToast } from '@/hooks/useToast'
 import { applyBrandColor } from '@/lib/branding'
+import { toFriendlyError } from '@/lib/friendlyError'
 import { useUpdateCompanyBranding } from '@/services/settings/hooks'
 import type {
   CompanyBrandingInput,
   CompanySettings,
 } from '@/services/settings/types'
+import { companyBrandingSchema } from '@/validation/company.schema'
 
 type BrandingSettingsCardProps = {
   settings: CompanySettings
@@ -29,8 +32,11 @@ export function BrandingSettingsCard({ settings }: BrandingSettingsCardProps) {
     handleSubmit,
     reset,
     watch,
-    formState: { errors, isDirty, isSubmitting },
+    trigger,
+    formState: { errors, isDirty, isSubmitting, isValid },
   } = useForm<CompanyBrandingInput>({
+    resolver: zodResolver(companyBrandingSchema),
+    mode: 'onChange',
     defaultValues: {
       primaryColor: settings.primaryColor || '#1a73f5',
     },
@@ -39,6 +45,10 @@ export function BrandingSettingsCard({ settings }: BrandingSettingsCardProps) {
   useEffect(() => {
     reset({ primaryColor: settings.primaryColor || '#1a73f5' })
   }, [settings.primaryColor, reset])
+
+  useEffect(() => {
+    void trigger()
+  }, [trigger])
 
   const previewColor = watch('primaryColor') || '#1a73f5'
   const disabled =
@@ -56,11 +66,9 @@ export function BrandingSettingsCard({ settings }: BrandingSettingsCardProps) {
       const color = values.primaryColor.trim().toLowerCase()
       await updateBranding.mutateAsync({ primaryColor: color })
       applyBrandColor(color)
-      toast('Settings updated successfully.', 'success')
+      toast('Saved successfully.', 'success')
     } catch (error) {
-      setFormError(
-        error instanceof Error ? error.message : 'Unable to save branding.',
-      )
+      setFormError(toFriendlyError(error, 'Unable to save branding.'))
     }
   })
 
@@ -75,13 +83,6 @@ export function BrandingSettingsCard({ settings }: BrandingSettingsCardProps) {
         <Controller
           name="primaryColor"
           control={control}
-          rules={{
-            required: 'Brand color is required',
-            pattern: {
-              value: HEX_PATTERN,
-              message: 'Use a hex color like #1a73f5',
-            },
-          }}
           render={({ field }) => (
             <ColorField
               label="Brand color"
@@ -134,7 +135,7 @@ export function BrandingSettingsCard({ settings }: BrandingSettingsCardProps) {
           </Button>
           <Button
             type="submit"
-            disabled={disabled || !isDirty}
+            disabled={disabled || !isDirty || !isValid}
             className="sm:min-w-36"
           >
             {isSubmitting || updateBranding.isPending ? (

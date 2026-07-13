@@ -117,6 +117,8 @@ export type InvoiceInput = {
   invoice_number: string
   customer_id: string
   issue_date: string
+  /** When omitted, due date is derived from issue date + company due days. */
+  due_date?: string
   status: InvoiceStatus
   amount_paid?: number
   discount_amount: number
@@ -130,14 +132,16 @@ export type InvoiceInput = {
   items: InvoiceItemInput[]
 }
 
-/** Create-mode payload: customer is created with the invoice in one submit. */
+/** Create-mode payload: reuse existing customer or create one with the invoice. */
 export type CreateBillInput = {
+  existingCustomerId?: string
   customer: {
     name: string
     phone: string
     email: string
     company_name: string
     address: string
+    tax_id: string
     notes: string
   }
   invoice: Omit<InvoiceInput, 'customer_id'>

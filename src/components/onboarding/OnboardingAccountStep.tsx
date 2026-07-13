@@ -1,25 +1,21 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight } from 'lucide-react'
 import { OnboardingActions } from '@/components/onboarding/OnboardingActions'
 import { Alert, Button, Input, PasswordInput, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
+import { showFieldSuccess } from '@/lib/formFeedback'
+import { toFriendlyError } from '@/lib/friendlyError'
 import { paths } from '@/lib/paths'
 import {
   saveOnboardingDraft,
-  validateStrongPassword,
   type OnboardingDraft,
 } from '@/services/onboarding'
+import { signupSchema, type SignupSchema } from '@/validation/auth.schema'
 
 const RATE_LIMIT_COOLDOWN_SEC = 30
-
-type AccountForm = {
-  fullName: string
-  email: string
-  password: string
-  confirmPassword: string
-}
 
 type AccountNotice =
   | { kind: 'rate_limit'; title: string; message: string }
@@ -47,16 +43,23 @@ export function OnboardingAccountStep({
   const {
     register,
     handleSubmit,
-    formState: { errors },
-  } = useForm<AccountForm>({
+    watch,
+    trigger,
+    formState: { errors, isValid, dirtyFields, touchedFields },
+  } = useForm<SignupSchema>({
+    resolver: zodResolver(signupSchema),
     defaultValues: {
       fullName: draft.fullName,
       email: draft.email,
       password: '',
       confirmPassword: '',
     },
-    mode: 'onBlur',
+    mode: 'onChange',
   })
+
+  useEffect(() => {
+    void trigger()
+  }, [trigger])
 
   useEffect(() => {
     if (cooldown <= 0) return
@@ -68,7 +71,12 @@ export function OnboardingAccountStep({
 
   const startCooldown = () => setCooldown(RATE_LIMIT_COOLDOWN_SEC)
 
-  const persistFields = (values: AccountForm) => {
+  const fullName = watch('fullName')
+  const email = watch('email')
+  const password = watch('password')
+  const confirmPassword = watch('confirmPassword')
+
+  const persistFields = (values: SignupSchema) => {
     const next: OnboardingDraft = {
       ...draft,
       fullName: values.fullName.trim(),
@@ -80,7 +88,7 @@ export function OnboardingAccountStep({
     return next
   }
 
-  const submitAccount = async (values: AccountForm) => {
+  const submitAccount = async (values: SignupSchema) => {
     if (busy || cooldown > 0) return
 
     setBusy(true)
@@ -121,7 +129,10 @@ export function OnboardingAccountStep({
       if (result.error) {
         setNotice({
           kind: 'generic',
-          message: result.error,
+          message: toFriendlyError(
+            result.error,
+            'Unable to create account. Please try again.',
+          ),
         })
         return
       }
@@ -135,7 +146,7 @@ export function OnboardingAccountStep({
     }
   }
 
-  const disabled = busy || cooldown > 0
+  const disabled = busy || cooldown > 0 || !isValid
 
   return (
     <form
@@ -179,10 +190,13 @@ export function OnboardingAccountStep({
         placeholder="Jane Doe"
         disabled={busy}
         error={errors.fullName?.message}
-        {...register('fullName', {
-          required: 'Full name is required',
-          minLength: { value: 2, message: 'Enter at least 2 characters' },
+        success={showFieldSuccess({
+          dirty: dirtyFields.fullName,
+          touched: touchedFields.fullName,
+          invalid: Boolean(errors.fullName),
+          value: fullName,
         })}
+        {...register('fullName')}
       />
       <Input
         label="Work email"
@@ -192,13 +206,13 @@ export function OnboardingAccountStep({
         placeholder="you@company.com"
         disabled={busy}
         error={errors.email?.message}
-        {...register('email', {
-          required: 'Work email is required',
-          pattern: {
-            value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Enter a valid email address',
-          },
+        success={showFieldSuccess({
+          dirty: dirtyFields.email,
+          touched: touchedFields.email,
+          invalid: Boolean(errors.email),
+          value: email,
         })}
+        {...register('email')}
       />
       <PasswordInput
         label="Password"
@@ -206,10 +220,13 @@ export function OnboardingAccountStep({
         placeholder="At least 8 characters"
         disabled={busy}
         error={errors.password?.message}
-        {...register('password', {
-          required: 'Password is required',
-          validate: validateStrongPassword,
+        success={showFieldSuccess({
+          dirty: dirtyFields.password,
+          touched: touchedFields.password,
+          invalid: Boolean(errors.password),
+          value: password,
         })}
+        {...register('password')}
       />
       <PasswordInput
         label="Confirm password"
@@ -217,11 +234,13 @@ export function OnboardingAccountStep({
         placeholder="Re-enter your password"
         disabled={busy}
         error={errors.confirmPassword?.message}
-        {...register('confirmPassword', {
-          required: 'Confirm your password',
-          validate: (value, values) =>
-            value === values.password || 'Passwords do not match',
+        success={showFieldSuccess({
+          dirty: dirtyFields.confirmPassword,
+          touched: touchedFields.confirmPassword,
+          invalid: Boolean(errors.confirmPassword),
+          value: confirmPassword,
         })}
+        {...register('confirmPassword')}
       />
 
       <OnboardingActions>

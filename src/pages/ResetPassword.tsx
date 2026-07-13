@@ -1,16 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { Alert, Button, PasswordInput, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
+import { showFieldSuccess } from '@/lib/formFeedback'
+import { toFriendlyError } from '@/lib/friendlyError'
 import { paths } from '@/lib/paths'
-import { validateStrongPassword } from '@/services/onboarding'
-
-type ResetPasswordFormValues = {
-  password: string
-  confirmPassword: string
-}
+import {
+  resetPasswordSchema,
+  type ResetPasswordSchema,
+} from '@/validation/auth.schema'
 
 /**
  * Completes the forgot-password flow after the user opens the email link.
@@ -25,11 +26,21 @@ export function ResetPassword() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<ResetPasswordFormValues>({
+    watch,
+    trigger,
+    formState: { errors, isSubmitting, isValid, dirtyFields, touchedFields },
+  } = useForm<ResetPasswordSchema>({
+    resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: '', confirmPassword: '' },
-    mode: 'onBlur',
+    mode: 'onChange',
   })
+
+  useEffect(() => {
+    void trigger()
+  }, [trigger])
+
+  const password = watch('password')
+  const confirmPassword = watch('confirmPassword')
 
   const onSubmit = handleSubmit(async ({ password: pwd }) => {
     setFormError(null)
@@ -37,7 +48,9 @@ export function ResetPassword() {
 
     const { error } = await updatePassword(pwd)
     if (error) {
-      setFormError(error)
+      setFormError(
+        toFriendlyError(error, 'Unable to update password. Please try again.'),
+      )
       return
     }
 
@@ -103,10 +116,13 @@ export function ResetPassword() {
           placeholder="At least 8 characters"
           disabled={isSubmitting}
           error={errors.password?.message}
-          {...register('password', {
-            required: 'Password is required',
-            validate: validateStrongPassword,
+          success={showFieldSuccess({
+            dirty: dirtyFields.password,
+            touched: touchedFields.password,
+            invalid: Boolean(errors.password),
+            value: password,
           })}
+          {...register('password')}
         />
 
         <PasswordInput
@@ -115,18 +131,20 @@ export function ResetPassword() {
           placeholder="Re-enter your password"
           disabled={isSubmitting}
           error={errors.confirmPassword?.message}
-          {...register('confirmPassword', {
-            required: 'Please confirm your password',
-            validate: (value, values) =>
-              value === values.password || 'Passwords do not match',
+          success={showFieldSuccess({
+            dirty: dirtyFields.confirmPassword,
+            touched: touchedFields.confirmPassword,
+            invalid: Boolean(errors.confirmPassword),
+            value: confirmPassword,
           })}
+          {...register('confirmPassword')}
         />
 
         <Button
           type="submit"
           className="w-full"
           size="lg"
-          disabled={isSubmitting}
+          disabled={!isValid || isSubmitting}
           aria-busy={isSubmitting}
         >
           {isSubmitting ? (

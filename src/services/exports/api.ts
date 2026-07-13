@@ -37,7 +37,7 @@ export async function fetchCustomersForExport(): Promise<Customer[]> {
     const { data, error } = await supabase
       .from('customers')
       .select(
-        'id, company_id, name, email, phone, address_line1, notes, is_active, created_at, updated_at',
+        'id, company_id, name, email, phone, company_name, address_line1, tax_id, notes, is_active, created_at, updated_at',
       )
       .eq('company_id', companyId)
       .eq('is_active', true)

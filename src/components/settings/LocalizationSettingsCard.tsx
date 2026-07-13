@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
@@ -8,6 +9,8 @@ import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
 import { Textarea } from '@/components/ui/Textarea'
 import { useToast } from '@/hooks/useToast'
+import { showFieldSuccess } from '@/lib/formFeedback'
+import { toFriendlyError } from '@/lib/friendlyError'
 import { useUpdateCompanyLocalization } from '@/services/settings/hooks'
 import {
   ensureCurrencyOption,
@@ -17,6 +20,7 @@ import type {
   CompanyLocalizationInput,
   CompanySettings,
 } from '@/services/settings/types'
+import { companyLocalizationSchema } from '@/validation/company.schema'
 
 type LocalizationSettingsCardProps = {
   settings: CompanySettings
@@ -38,8 +42,12 @@ export function LocalizationSettingsCard({
     register,
     handleSubmit,
     reset,
-    formState: { errors, isDirty, isSubmitting },
+    watch,
+    trigger,
+    formState: { errors, isDirty, isSubmitting, isValid, dirtyFields, touchedFields },
   } = useForm<CompanyLocalizationInput>({
+    resolver: zodResolver(companyLocalizationSchema),
+    mode: 'onChange',
     defaultValues: {
       currency: settings.currency || 'INR',
       timezone: settings.timezone || 'Asia/Kolkata',
@@ -57,8 +65,14 @@ export function LocalizationSettingsCard({
     })
   }, [settings, reset])
 
+  useEffect(() => {
+    void trigger()
+  }, [trigger])
+
   const disabled =
     !settings.canEdit || isSubmitting || updateLocalization.isPending
+  const invoicePrefix = watch('invoicePrefix') ?? ''
+  const invoiceFooter = watch('invoiceFooter') ?? ''
 
   const onCancel = () => {
     setFormError(null)
@@ -79,12 +93,10 @@ export function LocalizationSettingsCard({
         invoicePrefix: values.invoicePrefix.trim(),
         invoiceFooter: values.invoiceFooter.trim(),
       })
-      toast('Settings updated successfully.', 'success')
+      toast('Saved successfully.', 'success')
     } catch (error) {
       setFormError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to save invoicing settings.',
+        toFriendlyError(error, 'Unable to save invoicing settings.'),
       )
     }
   })
@@ -103,14 +115,28 @@ export function LocalizationSettingsCard({
             disabled={disabled}
             options={currencyOptions}
             error={errors.currency?.message}
-            {...register('currency', { required: 'Currency is required' })}
+            success={showFieldSuccess({
+              dirty: dirtyFields.currency,
+              touched: touchedFields.currency,
+              invalid: Boolean(errors.currency),
+              value: true,
+              requireValue: false,
+            })}
+            {...register('currency')}
           />
           <Select
             label="Timezone"
             disabled={disabled}
             options={timezoneOptions}
             error={errors.timezone?.message}
-            {...register('timezone', { required: 'Timezone is required' })}
+            success={showFieldSuccess({
+              dirty: dirtyFields.timezone,
+              touched: touchedFields.timezone,
+              invalid: Boolean(errors.timezone),
+              value: true,
+              requireValue: false,
+            })}
+            {...register('timezone')}
           />
         </div>
 
@@ -119,13 +145,13 @@ export function LocalizationSettingsCard({
           placeholder="INV-"
           disabled={disabled}
           error={errors.invoicePrefix?.message}
-          {...register('invoicePrefix', {
-            required: 'Invoice prefix is required',
-            maxLength: {
-              value: 20,
-              message: 'Prefix must be 20 characters or less',
-            },
+          success={showFieldSuccess({
+            dirty: dirtyFields.invoicePrefix,
+            touched: touchedFields.invoicePrefix,
+            invalid: Boolean(errors.invoicePrefix),
+            value: invoicePrefix,
           })}
+          {...register('invoicePrefix')}
         />
 
         <Textarea
@@ -134,12 +160,13 @@ export function LocalizationSettingsCard({
           disabled={disabled}
           rows={3}
           error={errors.invoiceFooter?.message}
-          {...register('invoiceFooter', {
-            maxLength: {
-              value: 1000,
-              message: 'Footer must be 1000 characters or less',
-            },
+          success={showFieldSuccess({
+            dirty: dirtyFields.invoiceFooter,
+            touched: touchedFields.invoiceFooter,
+            invalid: Boolean(errors.invoiceFooter),
+            value: invoiceFooter,
           })}
+          {...register('invoiceFooter')}
         />
 
         <div className="flex flex-col-reverse gap-2 border-t border-surface-100 pt-5 sm:flex-row sm:justify-end dark:border-surface-800">
@@ -153,7 +180,7 @@ export function LocalizationSettingsCard({
           </Button>
           <Button
             type="submit"
-            disabled={disabled || !isDirty}
+            disabled={disabled || !isDirty || !isValid}
             className="sm:min-w-40"
           >
             {isSubmitting || updateLocalization.isPending ? (
