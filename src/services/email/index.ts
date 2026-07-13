@@ -2,6 +2,7 @@ export {
   buildInvoiceEmailHtml,
   buildInvoiceEmailSubject,
 } from '@/services/email/invoiceEmailTemplate'
+export { formatInvoiceFromAddress } from '@/services/email/branding'
 export type {
   EmailMode,
   EmailSendSuccess,

@@ -6,7 +6,11 @@ import {
 } from 'lucide-react'
 import { StatCard } from '@/components/dashboard/StatCard'
 import type { RevenueSummary } from '@/services/reports/types'
-import { formatCurrency, formatNumber } from '@/lib/format'
+import {
+  formatCompactCurrency,
+  formatCurrency,
+  formatNumber,
+} from '@/lib/format'
 
 type RevenueStatsProps = {
   revenue?: RevenueSummary
@@ -14,7 +18,10 @@ type RevenueStatsProps = {
 }
 
 export function RevenueStats({ revenue, loading = false }: RevenueStatsProps) {
-  const currency = revenue?.currency ?? 'USD'
+  const currency = revenue?.currency ?? 'INR'
+  const totalRevenue = revenue?.totalRevenue ?? 0
+  const thisMonthRevenue = revenue?.thisMonthRevenue ?? 0
+  const outstanding = revenue?.outstanding ?? 0
   const monthDelta =
     revenue && revenue.lastMonthRevenue > 0
       ? ((revenue.thisMonthRevenue - revenue.lastMonthRevenue) /
@@ -26,14 +33,16 @@ export function RevenueStats({ revenue, loading = false }: RevenueStatsProps) {
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard
         title="Total Revenue"
-        value={formatCurrency(revenue?.totalRevenue ?? 0, currency)}
+        value={formatCompactCurrency(totalRevenue, currency)}
+        valueTooltip={formatCurrency(totalRevenue, currency)}
         description={`${formatNumber(revenue?.paidCount ?? 0)} paid invoices`}
         icon={CircleDollarSign}
         loading={loading}
       />
       <StatCard
         title="Revenue this month"
-        value={formatCurrency(revenue?.thisMonthRevenue ?? 0, currency)}
+        value={formatCompactCurrency(thisMonthRevenue, currency)}
+        valueTooltip={formatCurrency(thisMonthRevenue, currency)}
         description="Paid this calendar month"
         icon={TrendingUp}
         loading={loading}
@@ -49,7 +58,8 @@ export function RevenueStats({ revenue, loading = false }: RevenueStatsProps) {
       />
       <StatCard
         title="Outstanding"
-        value={formatCurrency(revenue?.outstanding ?? 0, currency)}
+        value={formatCompactCurrency(outstanding, currency)}
+        valueTooltip={formatCurrency(outstanding, currency)}
         description="Sent, overdue & partial"
         icon={Banknote}
         loading={loading}

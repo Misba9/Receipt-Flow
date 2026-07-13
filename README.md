@@ -70,8 +70,9 @@ src/
 
 ```bash
 supabase secrets set RESEND_API_KEY=re_xxxxxxxxx
-supabase secrets set RESEND_FROM_EMAIL="ReceiptFlow <billing@yourdomain.com>"
+supabase secrets set EMAIL_FROM=noreply@receiptflow.app
 supabase secrets set APP_URL=https://your-domain.com
 supabase functions deploy send-invoice-email
 ```
 
+`EMAIL_FROM` is the single verified mailbox. Each workspace sets its own **Sender name** and optional **Reply-To** in Settings → Email branding.

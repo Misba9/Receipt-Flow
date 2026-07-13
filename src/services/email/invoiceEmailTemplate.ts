@@ -114,7 +114,7 @@ export function buildInvoiceEmailHtml(input: BuildInvoiceEmailInput): string {
           <tr>
             <td style="padding:18px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;">
               <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center;">
-                Sent by ${safeCompany} via <a href="${escapeHtml(appUrl)}" style="color:#64748b;text-decoration:none;">ReceiptFlow</a>
+                Sent by ${safeCompany}${appUrl ? `. <a href="${escapeHtml(appUrl)}" style="color:#64748b;text-decoration:none;">Open invoice portal</a>` : ''}
               </p>
             </td>
           </tr>
@@ -127,5 +127,7 @@ export function buildInvoiceEmailHtml(input: BuildInvoiceEmailInput): string {
 }
 
 export function buildInvoiceEmailSubject(companyName: string): string {
-  return `Invoice from ${companyName || 'Company'}`
+  const name = companyName.trim()
+  if (!name) return 'Invoice'
+  return `Invoice from ${name}`
 }

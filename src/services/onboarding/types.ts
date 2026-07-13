@@ -134,30 +134,6 @@ export function validateStrongPassword(password: string): string | true {
   return true
 }
 
-/** Optional fields used for profile completion percentage. */
-export function getProfileCompletion(settings: {
-  logoUrl: string | null
-  taxId: string
-  website: string
-  phone: string
-  addressLine1: string
-  email: string
-  invoiceFooter: string
-}) {
-  const checks = [
-    Boolean(settings.logoUrl),
-    Boolean(settings.taxId.trim()),
-    Boolean(settings.website.trim()),
-    Boolean(settings.phone.trim()),
-    Boolean(settings.addressLine1.trim()),
-    Boolean(settings.email.trim()),
-    Boolean(settings.invoiceFooter.trim()),
-  ]
-  const done = checks.filter(Boolean).length
-  const percent = Math.round((done / checks.length) * 100)
-  return { percent, done, total: checks.length, isComplete: percent === 100 }
-}
-
 export function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()

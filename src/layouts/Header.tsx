@@ -68,7 +68,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-surface-200/80 bg-white/80 backdrop-blur-md dark:border-surface-800 dark:bg-surface-950/80">
+    <header className="z-30 shrink-0 border-b border-surface-200/80 bg-white/90 backdrop-blur-md dark:border-surface-800 dark:bg-surface-950/90">
       <div className="flex h-16 items-center gap-2 px-3 sm:gap-3 sm:px-6">
         <button
           type="button"

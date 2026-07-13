@@ -6,6 +6,8 @@ import { cn } from '@/utils'
 type StatCardProps = {
   title: string
   value: string
+  /** Full value shown on hover (e.g. exact currency for compact amounts). */
+  valueTooltip?: string
   description?: string
   icon: LucideIcon
   trend?: {
@@ -20,6 +22,7 @@ type StatCardProps = {
 export function StatCard({
   title,
   value,
+  valueTooltip,
   description,
   icon: Icon,
   trend,
@@ -35,14 +38,25 @@ export function StatCard({
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-3">
+        <div className="min-w-0 flex-1 space-y-3">
           <p className="text-sm font-medium text-surface-500 dark:text-surface-400">
             {title}
           </p>
           {loading ? (
             <Skeleton className="h-9 w-28" />
           ) : (
-            <p className="truncate text-3xl font-semibold tracking-tight text-surface-900 dark:text-surface-50">
+            <p
+              className={cn(
+                'font-semibold tracking-tight text-surface-900 dark:text-surface-50',
+                'whitespace-nowrap tabular-nums',
+                // Shrink slightly on narrow cards so compact values never overflow
+                'text-[1.65rem] leading-tight sm:text-3xl',
+                valueTooltip &&
+                  'cursor-help decoration-dotted underline-offset-4 hover:underline',
+              )}
+              title={valueTooltip}
+              aria-label={valueTooltip ?? value}
+            >
               {value}
             </p>
           )}

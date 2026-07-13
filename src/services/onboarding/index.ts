@@ -8,7 +8,6 @@ export {
   saveOnboardingStep,
   clearOnboardingSession,
   validateStrongPassword,
-  getProfileCompletion,
   fileToDataUrl,
   dataUrlToFile,
 } from '@/services/onboarding/types'
@@ -17,3 +16,9 @@ export {
   finishOnboarding,
   saveOnboardingProgress,
 } from '@/services/onboarding/api'
+export {
+  getRequiredProfileCompletion,
+  getOptionalProfileReminders,
+  isWorkspaceReady,
+  getProfileCompletion,
+} from '@/services/settings/profileCompletion'

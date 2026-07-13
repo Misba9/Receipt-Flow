@@ -8,11 +8,15 @@ import {
 import { StatCard } from '@/components/dashboard/StatCard'
 import { Alert } from '@/components/ui'
 import { useDashboardStats } from '@/services/dashboard/hooks'
-import { formatCurrency, formatNumber } from '@/lib/format'
+import { formatCompactCurrency, formatCurrency, formatNumber } from '@/lib/format'
 
 export function DashboardStatsGrid() {
   const { data, isLoading, isError, error } = useDashboardStats()
-  const currency = data?.currency ?? 'USD'
+  const currency = data?.currency ?? 'INR'
+
+  const todaysSales = data?.todaysSales ?? 0
+  const revenue = data?.revenue ?? 0
+  const outstanding = data?.outstanding ?? 0
 
   return (
     <div className="space-y-4">
@@ -27,7 +31,8 @@ export function DashboardStatsGrid() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           title="Today's Sales"
-          value={formatCurrency(data?.todaysSales ?? 0, currency)}
+          value={formatCompactCurrency(todaysSales, currency)}
+          valueTooltip={formatCurrency(todaysSales, currency)}
           description="Paid invoices today"
           icon={TrendingUp}
           loading={isLoading}
@@ -35,7 +40,8 @@ export function DashboardStatsGrid() {
         />
         <StatCard
           title="Revenue"
-          value={formatCurrency(data?.revenue ?? 0, currency)}
+          value={formatCompactCurrency(revenue, currency)}
+          valueTooltip={formatCurrency(revenue, currency)}
           description="All paid amounts"
           icon={DollarSign}
           loading={isLoading}
@@ -43,7 +49,8 @@ export function DashboardStatsGrid() {
         />
         <StatCard
           title="Outstanding"
-          value={formatCurrency(data?.outstanding ?? 0, currency)}
+          value={formatCompactCurrency(outstanding, currency)}
+          valueTooltip={formatCurrency(outstanding, currency)}
           description="Sent, overdue & partial"
           icon={Banknote}
           loading={isLoading}

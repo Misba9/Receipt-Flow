@@ -1,5 +1,8 @@
 import { Building2 } from 'lucide-react'
-import { CompanySettingsForm } from '@/components/settings/CompanySettingsForm'
+import { BrandingSettingsCard } from '@/components/settings/BrandingSettingsCard'
+import { CompanyProfileCard } from '@/components/settings/CompanyProfileCard'
+import { EmailBrandingSettingsCard } from '@/components/settings/EmailBrandingSettingsCard'
+import { LocalizationSettingsCard } from '@/components/settings/LocalizationSettingsCard'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Alert, Card, EmptyState, Spinner } from '@/components/ui'
 import { useCompanySettings } from '@/services/settings/hooks'
@@ -9,17 +12,25 @@ export function SettingsPage() {
     useCompanySettings()
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
         title="Company Settings"
-        description="Manage branding and invoice defaults for your company."
+        description="Manage your company profile, invoicing defaults, and branding."
       />
 
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+        {!data?.canEdit && data ? (
+          <Alert variant="info">
+            Only company owners and admins can edit company settings.
+          </Alert>
+        ) : null}
+
         {isLoading ? (
-          <Card className="flex items-center justify-center gap-3 py-16">
+          <Card className="flex items-center justify-center gap-3 p-8 py-16">
             <Spinner className="h-6 w-6" />
-            <span className="text-sm text-surface-500">Loading company settings…</span>
+            <span className="text-sm text-surface-500">
+              Loading company settings…
+            </span>
           </Card>
         ) : isError ? (
           <div className="space-y-4">
@@ -47,10 +58,12 @@ export function SettingsPage() {
             </Card>
           </div>
         ) : data ? (
-          <CompanySettingsForm
-            key={`${data.companyId}-${data.logoUrl ?? 'no-logo'}-${data.primaryColor}-${data.invoicePrefix}`}
-            settings={data}
-          />
+          <>
+            <CompanyProfileCard settings={data} />
+            <EmailBrandingSettingsCard settings={data} />
+            <LocalizationSettingsCard settings={data} />
+            <BrandingSettingsCard settings={data} />
+          </>
         ) : null}
       </div>
     </div>

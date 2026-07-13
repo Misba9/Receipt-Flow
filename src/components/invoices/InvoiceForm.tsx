@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Trash2 } from 'lucide-react'
+import { Check, FileText, Mail, Plus, Trash2 } from 'lucide-react'
 import { Alert, Button, Card, Input, Select, Spinner, Textarea } from '@/components/ui'
 import {
   calculateInvoiceTotals,
@@ -79,6 +79,28 @@ const statusOptions = INVOICE_STATUSES.filter(
   label: INVOICE_STATUS_LABELS[status],
 }))
 
+type CreateBillPhase = 'saving' | 'delivering'
+
+const CREATE_PHASES: Array<{
+  id: CreateBillPhase
+  label: string
+  description: string
+  icon: typeof FileText
+}> = [
+  {
+    id: 'saving',
+    label: 'Saving bill',
+    description: 'Creating customer and invoice…',
+    icon: FileText,
+  },
+  {
+    id: 'delivering',
+    label: 'Sending email',
+    description: 'Generating PDF and emailing the customer…',
+    icon: Mail,
+  },
+]
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -147,6 +169,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
 
   const [error, setError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [createPhase, setCreatePhase] = useState<CreateBillPhase | null>(null)
 
   const {
     register,
@@ -222,6 +245,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
         return
       }
 
+      setCreatePhase('saving')
       setStatusMessage('Saving customer and invoice…')
       const id = await createBill.mutateAsync({
         customer: {
@@ -244,6 +268,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             'Bill created, but company settings were unavailable for PDF/email.',
         }
       } else {
+        setCreatePhase('delivering')
         setStatusMessage('Generating PDF and sending email…')
         try {
           delivery = await deliverNewInvoice(id, company)
@@ -263,6 +288,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
         state: { delivery },
       })
     } catch (err) {
+      setCreatePhase(null)
       setStatusMessage(null)
       setError(err instanceof Error ? err.message : 'Unable to create bill.')
     }
@@ -273,6 +299,77 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
       <Card className="flex items-center justify-center gap-3 py-16">
         <Spinner className="h-6 w-6" />
         <span className="text-sm text-surface-500">Loading invoice form…</span>
+      </Card>
+    )
+  }
+
+  if (!isEdit && createPhase) {
+    const activeIndex = CREATE_PHASES.findIndex((step) => step.id === createPhase)
+
+    return (
+      <Card
+        className="flex flex-col items-center px-6 py-16 text-center sm:px-10"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <Spinner className="h-10 w-10" />
+        <div className="mt-6 space-y-2">
+          <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-50">
+            {createPhase === 'saving' ? 'Creating your bill…' : 'Finishing up…'}
+          </h3>
+          <p className="max-w-md text-sm text-surface-500 dark:text-surface-400">
+            {statusMessage ??
+              'Please wait while we save the bill and send the email.'}
+          </p>
+        </div>
+
+        <ol className="mt-8 w-full max-w-sm space-y-3 text-left">
+          {CREATE_PHASES.map((step, index) => {
+            const done = index < activeIndex
+            const active = index === activeIndex
+            const Icon = step.icon
+
+            return (
+              <li
+                key={step.id}
+                className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
+                  active
+                    ? 'border-brand-200 bg-brand-50/80 dark:border-brand-800 dark:bg-brand-950/40'
+                    : done
+                      ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30'
+                      : 'border-surface-100 bg-surface-50/60 dark:border-surface-800 dark:bg-surface-900/40'
+                }`}
+              >
+                <span
+                  className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                    done
+                      ? 'bg-emerald-500 text-white'
+                      : active
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'
+                  }`}
+                >
+                  {done ? (
+                    <Check className="h-4 w-4" aria-hidden />
+                  ) : active ? (
+                    <Spinner className="h-4 w-4 border-white/30 border-t-white" />
+                  ) : (
+                    <Icon className="h-4 w-4" aria-hidden />
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-surface-900 dark:text-surface-50">
+                    {step.label}
+                  </span>
+                  <span className="block text-xs text-surface-500 dark:text-surface-400">
+                    {step.description}
+                  </span>
+                </span>
+              </li>
+            )
+          })}
+        </ol>
       </Card>
     )
   }

@@ -31,7 +31,7 @@ export function InvoiceCreatePage() {
           {error instanceof Error ? error.message : 'Unable to load defaults.'}
         </Alert>
       ) : defaults ? (
-        <InvoiceForm key={defaults.invoice_number} defaults={defaults} />
+        <InvoiceForm defaults={defaults} />
       ) : null}
     </div>
   )

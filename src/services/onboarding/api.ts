@@ -15,7 +15,10 @@ function toSettingsInput(draft: OnboardingDraft, logoUrl: string | null) {
   return {
     name: companyName,
     businessType: draft.businessType.trim(),
+    description: '',
     email: companyEmail,
+    senderName: companyName,
+    replyTo: companyEmail,
     phone: draft.phone.trim(),
     website: draft.website.trim(),
     taxId: draft.taxId.trim(),
@@ -28,8 +31,8 @@ function toSettingsInput(draft: OnboardingDraft, logoUrl: string | null) {
     logoUrl,
     primaryColor: draft.primaryColor,
     invoiceFooter: draft.invoiceFooter.trim(),
-    currency: draft.currency.trim().toUpperCase() || 'USD',
-    timezone: draft.timezone.trim() || 'UTC',
+    currency: draft.currency.trim().toUpperCase() || 'INR',
+    timezone: draft.timezone.trim() || 'Asia/Kolkata',
     invoicePrefix: draft.invoicePrefix.trim() || 'INV-',
   }
 }

@@ -1,12 +1,17 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentCompanyId } from '@/lib/tenant'
 import type {
+  CompanyBrandingInput,
+  CompanyEmailBrandingInput,
+  CompanyLocalizationInput,
+  CompanyProfileInput,
   CompanySettings,
   CompanySettingsInput,
   ProfileRole,
 } from '@/services/settings/types'
 
 const LOGO_BUCKET = 'company-logos'
+const HEX_PATTERN = /^#[0-9A-Fa-f]{6}$/
 
 function emptyToNull(value: string) {
   const trimmed = value.trim()
@@ -16,7 +21,7 @@ function emptyToNull(value: string) {
 function normalizeCurrency(value: string) {
   const code = value.trim().toUpperCase()
   if (!/^[A-Z]{3}$/.test(code)) {
-    throw new Error('Currency must be a 3-letter ISO code (e.g. USD).')
+    throw new Error('Currency must be a 3-letter ISO code (e.g. INR).')
   }
   return code
 }
@@ -33,7 +38,7 @@ function normalizeInvoicePrefix(value: string) {
 }
 
 function normalizeTimezone(value: string) {
-  const timezone = value.trim() || 'UTC'
+  const timezone = value.trim() || 'Asia/Kolkata'
   try {
     Intl.DateTimeFormat(undefined, { timeZone: timezone })
   } catch {
@@ -49,6 +54,22 @@ function normalizeOptionalEmail(value: string, label: string) {
     throw new Error(`Enter a valid ${label}.`)
   }
   return trimmed.toLowerCase()
+}
+
+function normalizeDescription(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.length > 500) {
+    throw new Error('Company description must be 500 characters or less.')
+  }
+  return trimmed
+}
+
+function normalizePrimaryColor(value: string) {
+  const color = value.trim().toLowerCase()
+  if (!HEX_PATTERN.test(color)) {
+    throw new Error('Use a hex color like #1a73f5.')
+  }
+  return color
 }
 
 export async function fetchCompanySettings(): Promise<CompanySettings> {
@@ -78,7 +99,7 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
       supabase
         .from('companies')
         .select(
-          'id, name, business_type, email, phone, website, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url, onboarding_completed_at',
+          'id, name, business_type, description, email, sender_name, reply_to, phone, website, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url, onboarding_completed_at',
         )
         .eq('id', companyId)
         .maybeSingle(),
@@ -91,18 +112,69 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
         .maybeSingle(),
     ])
 
-  if (companyError) throw companyError
+  if (companyError) {
+    // description column may be missing before migration — retry without it
+    if (companyError.message?.includes('description')) {
+      const fallback = await supabase
+        .from('companies')
+        .select(
+          'id, name, business_type, email, sender_name, reply_to, phone, website, tax_id, address_line1, address_line2, city, state, postal_code, country, logo_url, onboarding_completed_at',
+        )
+        .eq('id', companyId)
+        .maybeSingle()
+      if (fallback.error) throw fallback.error
+      if (!fallback.data) throw new Error('Company not found.')
+      if (settingsError) throw settingsError
+      if (!settings) throw new Error('Company settings not found.')
+
+      const role = profile.role as ProfileRole
+      const companyName = fallback.data.name ?? ''
+      return {
+        companyId: fallback.data.id,
+        name: companyName,
+        businessType: fallback.data.business_type ?? '',
+        description: '',
+        email: fallback.data.email ?? '',
+        senderName:
+          (fallback.data.sender_name as string | null)?.trim() || companyName,
+        replyTo: (fallback.data.reply_to as string | null) ?? '',
+        phone: fallback.data.phone ?? '',
+        website: fallback.data.website ?? '',
+        taxId: fallback.data.tax_id ?? '',
+        addressLine1: fallback.data.address_line1 ?? '',
+        addressLine2: fallback.data.address_line2 ?? '',
+        city: fallback.data.city ?? '',
+        state: fallback.data.state ?? '',
+        postalCode: fallback.data.postal_code ?? '',
+        country: fallback.data.country ?? '',
+        logoUrl: fallback.data.logo_url,
+        primaryColor: settings.primary_color ?? '#1a73f5',
+        invoiceFooter: settings.invoice_footer ?? '',
+        currency: settings.default_currency ?? 'INR',
+        timezone: settings.timezone ?? 'Asia/Kolkata',
+        invoicePrefix: settings.invoice_prefix ?? 'INV-',
+        onboardingCompletedAt: fallback.data.onboarding_completed_at ?? null,
+        role,
+        canEdit: role === 'owner' || role === 'admin',
+      }
+    }
+    throw companyError
+  }
   if (settingsError) throw settingsError
   if (!company) throw new Error('Company not found.')
   if (!settings) throw new Error('Company settings not found.')
 
   const role = profile.role as ProfileRole
+  const companyName = company.name ?? ''
 
   return {
     companyId: company.id,
-    name: company.name ?? '',
+    name: companyName,
     businessType: company.business_type ?? '',
+    description: (company.description as string | null) ?? '',
     email: company.email ?? '',
+    senderName: (company.sender_name as string | null)?.trim() || companyName,
+    replyTo: (company.reply_to as string | null) ?? '',
     phone: company.phone ?? '',
     website: company.website ?? '',
     taxId: company.tax_id ?? '',
@@ -115,8 +187,8 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
     logoUrl: company.logo_url,
     primaryColor: settings.primary_color ?? '#1a73f5',
     invoiceFooter: settings.invoice_footer ?? '',
-    currency: settings.default_currency ?? 'USD',
-    timezone: settings.timezone ?? 'UTC',
+    currency: settings.default_currency ?? 'INR',
+    timezone: settings.timezone ?? 'Asia/Kolkata',
     invoicePrefix: settings.invoice_prefix ?? 'INV-',
     onboardingCompletedAt: company.onboarding_completed_at ?? null,
     role,
@@ -125,59 +197,153 @@ export async function fetchCompanySettings(): Promise<CompanySettings> {
 }
 
 /**
- * Updates the signed-in user's company only (RLS + tenant context).
- * Never accepts a client-supplied company id or Resend API keys.
+ * Full settings update (onboarding). Prefer section-specific saves in Settings UI.
  */
 export async function updateCompanySettings(
   input: CompanySettingsInput,
 ): Promise<void> {
-  const companyId = await getCurrentCompanyId()
+  await Promise.all([
+    updateCompanyProfile({
+      name: input.name,
+      businessType: input.businessType,
+      description: input.description,
+      email: input.email,
+      phone: input.phone,
+      website: input.website,
+      taxId: input.taxId,
+      addressLine1: input.addressLine1,
+      addressLine2: input.addressLine2,
+      city: input.city,
+      state: input.state,
+      postalCode: input.postalCode,
+      country: input.country,
+      logoUrl: input.logoUrl,
+    }),
+    updateCompanyEmailBranding({
+      senderName: input.senderName,
+      replyTo: input.replyTo,
+    }),
+    updateCompanyLocalization({
+      currency: input.currency,
+      timezone: input.timezone,
+      invoicePrefix: input.invoicePrefix,
+      invoiceFooter: input.invoiceFooter,
+    }),
+    updateCompanyBranding({ primaryColor: input.primaryColor }),
+  ])
+}
 
+export async function updateCompanyProfile(
+  input: CompanyProfileInput,
+): Promise<void> {
+  const companyId = await getCurrentCompanyId()
+  const companyName = input.name.trim()
+  if (!companyName) throw new Error('Company name is required.')
+
+  const companyEmail = normalizeOptionalEmail(input.email, 'company email')
+  const description = normalizeDescription(input.description)
+
+  const { error } = await supabase
+    .from('companies')
+    .update({
+      name: companyName,
+      business_type: emptyToNull(input.businessType),
+      description: emptyToNull(description),
+      email: emptyToNull(companyEmail),
+      phone: emptyToNull(input.phone),
+      website: emptyToNull(input.website),
+      tax_id: emptyToNull(input.taxId),
+      address_line1: emptyToNull(input.addressLine1),
+      address_line2: emptyToNull(input.addressLine2),
+      city: emptyToNull(input.city),
+      state: emptyToNull(input.state),
+      postal_code: emptyToNull(input.postalCode),
+      country: emptyToNull(input.country),
+      logo_url: input.logoUrl,
+    })
+    .eq('id', companyId)
+
+  if (error) {
+    if (error.message?.includes('description')) {
+      const { error: retryError } = await supabase
+        .from('companies')
+        .update({
+          name: companyName,
+          business_type: emptyToNull(input.businessType),
+          email: emptyToNull(companyEmail),
+          phone: emptyToNull(input.phone),
+          website: emptyToNull(input.website),
+          tax_id: emptyToNull(input.taxId),
+          address_line1: emptyToNull(input.addressLine1),
+          address_line2: emptyToNull(input.addressLine2),
+          city: emptyToNull(input.city),
+          state: emptyToNull(input.state),
+          postal_code: emptyToNull(input.postalCode),
+          country: emptyToNull(input.country),
+          logo_url: input.logoUrl,
+        })
+        .eq('id', companyId)
+      if (retryError) throw retryError
+      return
+    }
+    throw error
+  }
+}
+
+export async function updateCompanyEmailBranding(
+  input: CompanyEmailBrandingInput,
+): Promise<void> {
+  const companyId = await getCurrentCompanyId()
+  const senderName = input.senderName.trim()
+  if (!senderName) throw new Error('Sender name is required.')
+  const replyTo = normalizeOptionalEmail(input.replyTo, 'reply-to email')
+
+  const { error } = await supabase
+    .from('companies')
+    .update({
+      sender_name: senderName,
+      reply_to: emptyToNull(replyTo),
+    })
+    .eq('id', companyId)
+
+  if (error) throw error
+}
+
+export async function updateCompanyLocalization(
+  input: CompanyLocalizationInput,
+): Promise<void> {
+  const companyId = await getCurrentCompanyId()
   const currency = normalizeCurrency(input.currency)
   const timezone = normalizeTimezone(input.timezone)
   const invoicePrefix = normalizeInvoicePrefix(input.invoicePrefix)
-  const companyEmail = normalizeOptionalEmail(input.email, 'company email')
 
-  if (!input.name.trim()) {
-    throw new Error('Company name is required.')
-  }
+  const { error } = await supabase
+    .from('settings')
+    .update({
+      invoice_footer: emptyToNull(input.invoiceFooter),
+      default_currency: currency,
+      timezone,
+      invoice_prefix: invoicePrefix,
+    })
+    .eq('company_id', companyId)
 
-  const [{ error: companyError }, { error: settingsError }] = await Promise.all([
-    supabase
-      .from('companies')
-      .update({
-        name: input.name.trim(),
-        business_type: emptyToNull(input.businessType),
-        email: emptyToNull(companyEmail),
-        phone: emptyToNull(input.phone),
-        website: emptyToNull(input.website),
-        tax_id: emptyToNull(input.taxId),
-        address_line1: emptyToNull(input.addressLine1),
-        address_line2: emptyToNull(input.addressLine2),
-        city: emptyToNull(input.city),
-        state: emptyToNull(input.state),
-        postal_code: emptyToNull(input.postalCode),
-        country: emptyToNull(input.country),
-        logo_url: input.logoUrl,
-      })
-      .eq('id', companyId),
-    supabase
-      .from('settings')
-      .update({
-        primary_color: input.primaryColor,
-        invoice_footer: emptyToNull(input.invoiceFooter),
-        default_currency: currency,
-        timezone,
-        invoice_prefix: invoicePrefix,
-      })
-      .eq('company_id', companyId),
-  ])
-
-  if (companyError) throw companyError
-  if (settingsError) throw settingsError
+  if (error) throw error
 }
 
-/** Marks workspace onboarding as finished for the current company. */
+export async function updateCompanyBranding(
+  input: CompanyBrandingInput,
+): Promise<void> {
+  const companyId = await getCurrentCompanyId()
+  const primaryColor = normalizePrimaryColor(input.primaryColor)
+
+  const { error } = await supabase
+    .from('settings')
+    .update({ primary_color: primaryColor })
+    .eq('company_id', companyId)
+
+  if (error) throw error
+}
+
 export async function markOnboardingComplete(): Promise<void> {
   const companyId = await getCurrentCompanyId()
   const { error } = await supabase

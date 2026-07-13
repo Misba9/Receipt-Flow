@@ -1,4 +1,5 @@
 import { getEmailMode, isEmailDevelopmentMode } from '@/services/email/config'
+import { formatInvoiceFromAddress } from '@/services/email/branding'
 import {
   buildInvoiceEmailHtml,
   buildInvoiceEmailSubject,
@@ -79,6 +80,15 @@ export const EmailService = {
       throw new Error('Company name is required before previewing email.')
     }
 
+    const senderName = company.senderName.trim() || companyName
+    if (!senderName) {
+      throw new Error('Sender name is required before previewing email.')
+    }
+
+    const platformFrom =
+      (import.meta.env.VITE_EMAIL_FROM as string | undefined)?.trim() ||
+      'noreply@your-verified-domain.com'
+
     const subject = buildInvoiceEmailSubject(companyName)
     const html = buildInvoiceEmailHtml({
       companyName,
@@ -98,13 +108,15 @@ export const EmailService = {
       appUrl: appUrl(),
     })
 
+    const replyTo = company.replyTo.trim() || undefined
+
     return {
       subject,
       recipient,
       html,
       attachmentName: `${invoice.invoice_number}.pdf`,
-      from: `${import.meta.env.VITE_APP_NAME || 'ReceiptFlow'} (platform sender)`,
-      replyTo: company.email || undefined,
+      from: formatInvoiceFromAddress(senderName, platformFrom),
+      replyTo,
     }
   },
 } as const

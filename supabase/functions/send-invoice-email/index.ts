@@ -1,17 +1,16 @@
 /**
- * Sends an invoice email via Resend using the platform SaaS sender.
+ * Sends an invoice email via Resend using one verified platform mailbox
+ * and per-company display name / reply-to branding.
  *
  * Platform secrets only (never per-tenant keys):
- *   RESEND_API_KEY            — global Resend account
- *   RESEND_FROM_EMAIL         — SaaS From, e.g. "ReceiptFlow <billing@yourdomain.com>"
+ *   RESEND_API_KEY   — global Resend account
+ *   EMAIL_FROM       — verified mailbox only, e.g. noreply@receiptflow.app
+ *                      (RESEND_FROM_EMAIL still accepted as a fallback)
  *   APP_URL
  *
- * Idempotency:
- *   automatic — content fingerprint (safe retries of the same payload)
- *   manual    — fresh UUID per Send Email click
- *   On Resend key/body conflict — one retry with a new UUID, then a friendly error.
- *
- * Reply-To uses the company's business email when set.
+ * From header:  "{companies.sender_name} <EMAIL_FROM>"
+ * Reply-To:     companies.reply_to (omitted when empty)
+ * Subject:      Invoice from {companies.name}
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
@@ -55,38 +54,42 @@ type SendInvoiceEmailRequest = {
 
 const FRIENDLY_SEND_ERROR = 'Unable to send email. Please try again later.'
 
-
 type CompanyEmailRow = {
   name: string
+  sender_name: string | null
+  reply_to: string | null
   email: string | null
   phone: string | null
   website: string | null
   tax_id: string | null
 }
 
-function parsePlatformFrom(raw: string): { fromAddress: string; fromEmail: string } {
-  const trimmed = raw.trim()
-  if (!trimmed) {
-    throw new Error('RESEND_FROM_EMAIL is empty.')
+/** Extract the verified mailbox from EMAIL_FROM / RESEND_FROM_EMAIL. */
+function resolveVerifiedFromEmail(): string {
+  const raw = (
+    Deno.env.get('EMAIL_FROM') ??
+    Deno.env.get('RESEND_FROM_EMAIL') ??
+    ''
+  ).trim()
+
+  if (!raw) {
+    throw new Error(
+      'EMAIL_FROM is empty. Set EMAIL_FROM=noreply@yourdomain.com',
+    )
   }
 
-  const angled = trimmed.match(/^(.+?)\s*<([^>]+)>$/)
-  if (angled) {
-    const email = angled[2].trim().toLowerCase()
-    if (!isValidEmail(email)) {
-      throw new Error('RESEND_FROM_EMAIL contains an invalid email.')
-    }
-    return {
-      fromAddress: `${angled[1].trim()} <${email}>`,
-      fromEmail: email,
-    }
-  }
-
-  const email = trimmed.toLowerCase()
+  const angled = raw.match(/<([^>]+)>/)
+  const email = (angled ? angled[1] : raw).trim().toLowerCase()
   if (!isValidEmail(email)) {
-    throw new Error('RESEND_FROM_EMAIL is invalid.')
+    throw new Error('EMAIL_FROM must be a valid email address.')
   }
-  return { fromAddress: email, fromEmail: email }
+  return email
+}
+
+/** RFC-safe From: "Display Name" <mailbox@domain> */
+function formatFromAddress(senderName: string, fromEmail: string): string {
+  const escaped = senderName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  return `"${escaped}" <${fromEmail}>`
 }
 
 function formatMoney(amount: number, currency: string) {
@@ -419,7 +422,6 @@ Deno.serve(async (req) => {
 
   try {
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    const resendFromEmail = Deno.env.get('RESEND_FROM_EMAIL')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -429,19 +431,14 @@ Deno.serve(async (req) => {
       return fail('Email is not configured. Set RESEND_API_KEY secret.', 500)
     }
 
-    if (!resendFromEmail?.trim()) {
-      return fail(
-        'Email sender is not configured. Set RESEND_FROM_EMAIL secret.',
-        500,
-      )
-    }
-
-    let platformFrom: { fromAddress: string; fromEmail: string }
+    let verifiedFromEmail: string
     try {
-      platformFrom = parsePlatformFrom(resendFromEmail)
+      verifiedFromEmail = resolveVerifiedFromEmail()
     } catch (error) {
       return fail(
-        error instanceof Error ? error.message : 'Invalid RESEND_FROM_EMAIL.',
+        error instanceof Error
+          ? error.message
+          : 'EMAIL_FROM is not configured.',
         500,
       )
     }
@@ -545,7 +542,7 @@ Deno.serve(async (req) => {
       await Promise.all([
         supabase
           .from('companies')
-          .select('name, email, phone, website, tax_id')
+          .select('name, sender_name, reply_to, email, phone, website, tax_id')
           .eq('id', callerCompanyId)
           .maybeSingle(),
         supabase
@@ -565,13 +562,18 @@ Deno.serve(async (req) => {
       return fail('Company name is missing. Update company settings.', 422)
     }
 
-    const replyToRaw = (companyRow.email ?? '').trim().toLowerCase()
+    const senderName = (companyRow.sender_name ?? '').trim() || companyName
+    if (!senderName) {
+      return fail('Sender name is missing. Update company settings.', 422)
+    }
+
+    const replyToRaw = (companyRow.reply_to ?? '').trim().toLowerCase()
     if (replyToRaw && !isValidEmail(replyToRaw)) {
-      return fail('Company email is invalid.', 422)
+      return fail('Reply-To email is invalid. Update company settings.', 422)
     }
 
     const brandColor = settings?.primary_color ?? '#1a73f5'
-    const fromAddress = platformFrom.fromAddress
+    const fromAddress = formatFromAddress(senderName, verifiedFromEmail)
     const subject = `Invoice from ${companyName}`
 
     const { data: pdfFile, error: pdfError } = await admin.storage

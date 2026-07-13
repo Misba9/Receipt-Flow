@@ -127,13 +127,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-[min(18rem,85vw)] flex-col border-r border-surface-200/80 bg-white/95',
+          'fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(18rem,85vw)] flex-col border-r border-surface-200/80 bg-white/95',
           'dark:border-surface-800 dark:bg-surface-950/95',
-          'transition-transform duration-200 ease-out lg:static lg:w-72 lg:translate-x-0',
+          'transition-transform duration-200 ease-out lg:static lg:z-0 lg:h-full lg:w-72 lg:shrink-0 lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex h-16 items-center justify-between gap-2 border-b border-surface-200 px-5 dark:border-surface-800">
+        <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-surface-200 px-5 dark:border-surface-800">
           <div className="flex min-w-0 items-center gap-2.5">
             {!isAdminConsole && company?.logoUrl ? (
               <img
@@ -169,7 +169,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-3">
           {isAdminConsole ? (
             <nav className="flex flex-col gap-1">
               <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-surface-400">
@@ -228,7 +228,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           )}
         </div>
 
-        <div className="border-t border-surface-200 p-4 dark:border-surface-800">
+        <div className="shrink-0 border-t border-surface-200 p-4 dark:border-surface-800">
           <div className="rounded-xl bg-surface-50 px-3 py-3 dark:bg-surface-900">
             <p className="truncate text-sm font-medium text-surface-900 dark:text-surface-50">
               {displayName}

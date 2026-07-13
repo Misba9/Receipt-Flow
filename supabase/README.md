@@ -74,13 +74,12 @@ Do **not** bake a localhost host into client auth redirects — use `window.loca
 
 ```bash
 supabase secrets set RESEND_API_KEY=re_xxxxxxxxx
-supabase secrets set RESEND_FROM_EMAIL="ReceiptFlow <billing@yourdomain.com>"
+supabase secrets set EMAIL_FROM=noreply@receiptflow.app
 supabase secrets set APP_URL=https://your-domain.com
 supabase functions deploy send-invoice-email
 ```
 
-Use a verified Resend domain in production.
-
+From header becomes `"{companies.sender_name}" <EMAIL_FROM>`. Reply-To uses `companies.reply_to` when set. Use a verified Resend domain in production.
 ## Super Admin
 
 ```sql

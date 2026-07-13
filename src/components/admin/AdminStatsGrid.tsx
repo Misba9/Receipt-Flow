@@ -8,7 +8,11 @@ import { SubscriptionBadge } from '@/components/admin/SubscriptionBadge'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import type { PlatformStats, SubscriptionStatus } from '@/services/admin'
-import { formatCurrency, formatNumber } from '@/lib/format'
+import {
+  formatCompactCurrency,
+  formatCurrency,
+  formatNumber,
+} from '@/lib/format'
 
 type AdminStatsProps = {
   stats?: PlatformStats
@@ -16,6 +20,8 @@ type AdminStatsProps = {
 }
 
 export function AdminStatsGrid({ stats, loading = false }: AdminStatsProps) {
+  const totalRevenue = stats?.totalRevenue ?? 0
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard
@@ -35,7 +41,8 @@ export function AdminStatsGrid({ stats, loading = false }: AdminStatsProps) {
       />
       <StatCard
         title="Total revenue"
-        value={formatCurrency(stats?.totalRevenue ?? 0)}
+        value={formatCompactCurrency(totalRevenue, 'INR')}
+        valueTooltip={formatCurrency(totalRevenue, 'INR')}
         description="Paid invoices across all tenants"
         icon={CircleDollarSign}
         loading={loading}

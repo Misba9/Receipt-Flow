@@ -1,6 +1,10 @@
 export {
   useCompanySettings,
   useUpdateCompanySettings,
+  useUpdateCompanyProfile,
+  useUpdateCompanyEmailBranding,
+  useUpdateCompanyLocalization,
+  useUpdateCompanyBranding,
   useUploadCompanyLogo,
   useRemoveCompanyLogo,
   settingsKeys,
@@ -8,9 +12,19 @@ export {
 export type {
   CompanySettings,
   CompanySettingsInput,
+  CompanyProfileInput,
+  CompanyEmailBrandingInput,
+  CompanyLocalizationInput,
+  CompanyBrandingInput,
   ProfileRole,
 } from '@/services/settings/types'
 export {
   CURRENCY_OPTIONS,
   TIMEZONE_OPTIONS,
 } from '@/services/settings/options'
+export {
+  getRequiredProfileCompletion,
+  getOptionalProfileReminders,
+  isWorkspaceReady,
+  getProfileCompletion,
+} from '@/services/settings/profileCompletion'
