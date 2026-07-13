@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Building2, Globe, Mail, MapPin, Pencil, Phone, X } from 'lucide-react'
 import { LogoUpload } from '@/components/settings/LogoUpload'
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard'
@@ -10,6 +11,8 @@ import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
 import { Textarea } from '@/components/ui/Textarea'
 import { useToast } from '@/hooks/useToast'
+import { showFieldSuccess } from '@/lib/formFeedback'
+import { toFriendlyError } from '@/lib/friendlyError'
 import { BUSINESS_TYPES } from '@/services/onboarding'
 import {
   useRemoveCompanyLogo,
@@ -20,13 +23,13 @@ import type {
   CompanyProfileInput,
   CompanySettings,
 } from '@/services/settings/types'
+import { companyProfileSchema } from '@/validation/company.schema'
 import { cn } from '@/utils'
 
 type CompanyProfileCardProps = {
   settings: CompanySettings
 }
 
-const EMAIL_PATTERN = /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const BUSINESS_TYPE_OPTIONS = BUSINESS_TYPES.map((value) => ({
   value,
   label: value,
@@ -89,8 +92,11 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
     handleSubmit,
     reset,
     watch,
-    formState: { errors, isSubmitting },
+    trigger,
+    formState: { errors, isSubmitting, isValid, dirtyFields, touchedFields },
   } = useForm<CompanyProfileInput>({
+    resolver: zodResolver(companyProfileSchema),
+    mode: 'onChange',
     defaultValues: {
       name: settings.name,
       businessType: settings.businessType,
@@ -131,8 +137,18 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
     }
   }, [settings, editing, reset])
 
+  useEffect(() => {
+    if (editing) void trigger()
+  }, [editing, trigger])
+
   const descriptionValue = watch('description') ?? ''
+  const nameValue = watch('name') ?? ''
+  const emailValue = watch('email') ?? ''
+  const phoneValue = watch('phone') ?? ''
+  const websiteValue = watch('website') ?? ''
+  const taxIdValue = watch('taxId') ?? ''
   const disabled = !settings.canEdit || isSubmitting || updateProfile.isPending
+  const saveDisabled = disabled || !isValid
   const addressLines = buildAddressLines(settings)
 
   const startEdit = () => {
@@ -171,12 +187,10 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
         name: values.name.trim(),
         description: values.description.trim(),
       })
-      toast('Settings updated successfully.', 'success')
+      toast('Saved successfully.', 'success')
       setEditing(false)
     } catch (error) {
-      setFormError(
-        error instanceof Error ? error.message : 'Unable to save profile.',
-      )
+      setFormError(toFriendlyError(error, 'Unable to save profile.'))
     }
   })
 
@@ -186,9 +200,7 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
       const url = await uploadLogo.mutateAsync(file)
       setLogoUrl(url)
     } catch (error) {
-      setFormError(
-        error instanceof Error ? error.message : 'Unable to upload logo.',
-      )
+      setFormError(toFriendlyError(error, 'Unable to upload logo.'))
     }
   }
 
@@ -198,9 +210,7 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
       await removeLogo.mutateAsync(logoUrl)
       setLogoUrl(null)
     } catch (error) {
-      setFormError(
-        error instanceof Error ? error.message : 'Unable to remove logo.',
-      )
+      setFormError(toFriendlyError(error, 'Unable to remove logo.'))
     }
   }
 
@@ -326,10 +336,13 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
           placeholder="Quick Groceries"
           disabled={disabled}
           error={errors.name?.message}
-          {...register('name', {
-            required: 'Company name is required',
-            minLength: { value: 2, message: 'Enter at least 2 characters' },
+          success={showFieldSuccess({
+            dirty: dirtyFields.name,
+            touched: touchedFields.name,
+            invalid: Boolean(errors.name),
+            value: nameValue,
           })}
+          {...register('name')}
         />
 
         <Select
@@ -348,12 +361,13 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
             disabled={disabled}
             rows={4}
             error={errors.description?.message}
-            {...register('description', {
-              maxLength: {
-                value: 500,
-                message: 'Description must be 500 characters or less',
-              },
+            success={showFieldSuccess({
+              dirty: dirtyFields.description,
+              touched: touchedFields.description,
+              invalid: Boolean(errors.description),
+              value: descriptionValue,
             })}
+            {...register('description')}
           />
           <p className="mt-1.5 text-right text-xs text-surface-400">
             {descriptionValue.length}/500
@@ -368,19 +382,26 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
             hint="Used as Reply-To on invoice emails. Sending always uses the platform mailbox."
             disabled={disabled}
             error={errors.email?.message}
-            {...register('email', {
-              pattern: {
-                value: EMAIL_PATTERN,
-                message: 'Enter a valid email',
-              },
+            success={showFieldSuccess({
+              dirty: dirtyFields.email,
+              touched: touchedFields.email,
+              invalid: Boolean(errors.email),
+              value: emailValue,
             })}
+            {...register('email')}
           />
           <Input
             label="Phone"
             type="tel"
-            placeholder="+91 98765 43210"
+            placeholder="+919876543210"
             disabled={disabled}
             error={errors.phone?.message}
+            success={showFieldSuccess({
+              dirty: dirtyFields.phone,
+              touched: touchedFields.phone,
+              invalid: Boolean(errors.phone),
+              value: phoneValue,
+            })}
             {...register('phone')}
           />
         </div>
@@ -391,6 +412,12 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
           placeholder="https://company.com"
           disabled={disabled}
           error={errors.website?.message}
+          success={showFieldSuccess({
+            dirty: dirtyFields.website,
+            touched: touchedFields.website,
+            invalid: Boolean(errors.website),
+            value: websiteValue,
+          })}
           {...register('website')}
         />
 
@@ -399,6 +426,12 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
           placeholder="GSTIN / VAT / EIN"
           disabled={disabled}
           error={errors.taxId?.message}
+          success={showFieldSuccess({
+            dirty: dirtyFields.taxId,
+            touched: touchedFields.taxId,
+            invalid: Boolean(errors.taxId),
+            value: taxIdValue,
+          })}
           {...register('taxId')}
         />
 
@@ -444,11 +477,11 @@ export function CompanyProfileCard({ settings }: CompanyProfileCardProps) {
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={disabled} className="sm:min-w-32">
-            {disabled ? (
+          <Button type="submit" disabled={saveDisabled} className="sm:min-w-32">
+            {isSubmitting || updateProfile.isPending ? (
               <Spinner className="h-4 w-4 border-white/30 border-t-white" />
             ) : null}
-            {disabled ? 'Saving…' : 'Save'}
+            {isSubmitting || updateProfile.isPending ? 'Saving…' : 'Save'}
           </Button>
         </div>
       </form>

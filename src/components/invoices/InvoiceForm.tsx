@@ -1,9 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { Check, FileText, Mail, Plus, Trash2 } from 'lucide-react'
 import { Alert, Button, Card, Input, Select, Spinner, Textarea } from '@/components/ui'
+import { CustomerDuplicateDialog } from '@/components/customers/CustomerDuplicateDialog'
 import { QuantityStepper } from '@/components/invoices/QuantityStepper'
+import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
+import { useToast } from '@/hooks/useToast'
 import {
   calculateInvoiceTotals,
   lineAmount,
@@ -14,7 +18,6 @@ import {
 } from '@/services/invoices/deliver'
 import {
   useCreateBill,
-  useInvoiceCustomerOptions,
   useUpdateInvoice,
 } from '@/services/invoices/hooks'
 import type {
@@ -30,21 +33,32 @@ import {
   PAYMENT_MODE_LABELS,
   PAYMENT_MODES,
 } from '@/services/invoices/types'
+import {
+  customerToFormValues,
+  findExactCustomerDuplicate,
+} from '@/services/customers/api'
+import type { CustomerSuggestion } from '@/services/customers/types'
 import { useCompanySettings } from '@/services/settings/hooks'
+import { showFieldSuccess } from '@/lib/formFeedback'
 import { formatCurrency } from '@/lib/format'
+import { toFriendlyError } from '@/lib/friendlyError'
 import { paths } from '@/lib/paths'
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+import {
+  invoiceCreateSchema,
+  invoiceEditSchema,
+} from '@/validation/invoice.schema'
 
 type InvoiceFormValues = {
   customer_name: string
   customer_phone: string
   customer_email: string
   customer_address: string
+  customer_tax_id: string
   customer_notes: string
   invoice_number: string
   customer_id: string
   issue_date: string
+  due_date: string
   status: InvoiceStatus
   discount_amount: number
   tax_rate: number
@@ -106,6 +120,12 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function addDaysIso(iso: string, days: number) {
+  const date = new Date(`${iso}T12:00:00`)
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 function buildDefaultValues(
   invoice?: InvoiceDetail,
   defaults?: InvoiceDefaults,
@@ -116,10 +136,14 @@ function buildDefaultValues(
       customer_phone: invoice.customer?.phone ?? '',
       customer_email: invoice.customer?.email ?? '',
       customer_address: invoice.customer?.address_line1 ?? '',
+      customer_tax_id: '',
       customer_notes: '',
       invoice_number: invoice.invoice_number,
       customer_id: invoice.customer_id,
       issue_date: invoice.issue_date,
+      due_date:
+        invoice.due_date ??
+        addDaysIso(invoice.issue_date, defaults?.due_days ?? 30),
       status: invoice.status,
       discount_amount: invoice.discount_amount,
       tax_rate: invoice.tax_rate,
@@ -144,10 +168,12 @@ function buildDefaultValues(
     customer_phone: '',
     customer_email: '',
     customer_address: '',
+    customer_tax_id: '',
     customer_notes: '',
     invoice_number: defaults?.invoice_number ?? '',
     customer_id: '',
     issue_date: todayIso(),
+    due_date: addDaysIso(todayIso(), defaults?.due_days ?? 30),
     status: 'paid',
     discount_amount: 0,
     tax_rate: defaults?.tax_rate ?? 0,
@@ -164,22 +190,40 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
   const navigate = useNavigate()
   const createBill = useCreateBill()
   const updateInvoice = useUpdateInvoice()
-  const { data: customers = [], isLoading: customersLoading } =
-    useInvoiceCustomerOptions()
   const { data: company } = useCompanySettings()
 
   const [error, setError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [createPhase, setCreatePhase] = useState<CreateBillPhase | null>(null)
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
+    invoice?.customer_id ?? null,
+  )
+  const { toast } = useToast()
+  const [duplicate, setDuplicate] = useState<CustomerSuggestion | null>(null)
+  const [pendingSubmit, setPendingSubmit] = useState<InvoiceFormValues | null>(
+    null,
+  )
 
   const {
     register,
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    setValue,
+    getValues,
+    trigger,
+    formState: { errors, isSubmitting, isValid, dirtyFields, touchedFields },
   } = useForm<InvoiceFormValues>({
+    // Schema output matches InvoiceFormValues after coerce; cast keeps RHF types stable.
+    resolver: zodResolver(
+      isEdit ? invoiceEditSchema : invoiceCreateSchema,
+    ) as never,
+    mode: 'onChange',
     defaultValues: buildDefaultValues(invoice, defaults),
   })
+
+  useEffect(() => {
+    void trigger()
+  }, [trigger])
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -190,6 +234,53 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
   const watchedDiscount = Number(useWatch({ control, name: 'discount_amount' })) || 0
   const watchedTaxRate = Number(useWatch({ control, name: 'tax_rate' })) || 0
   const watchedPaymentMode = useWatch({ control, name: 'payment_mode' })
+  const watchedCustomerName = useWatch({ control, name: 'customer_name' }) ?? ''
+  const watchedCustomerPhone = useWatch({ control, name: 'customer_phone' }) ?? ''
+  const watchedCustomerEmail = useWatch({ control, name: 'customer_email' }) ?? ''
+
+  const applyCustomer = (selected: CustomerSuggestion) => {
+    const values = customerToFormValues(selected)
+    setValue('customer_name', values.name, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    setValue('customer_phone', values.phone, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    setValue('customer_email', values.email, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    setValue('customer_address', values.address, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    setValue('customer_tax_id', values.tax_id, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    setValue('customer_notes', values.notes, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    setValue('customer_id', selected.id, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    setSelectedCustomerId(selected.id)
+    setDuplicate(null)
+  }
+
+  const autocomplete = useCustomerAutocomplete({
+    enabled: true,
+    getFieldValue: (field) => {
+      if (field === 'name') return watchedCustomerName
+      if (field === 'phone') return watchedCustomerPhone
+      return watchedCustomerEmail
+    },
+    onSelect: applyCustomer,
+  })
 
   const totals = useMemo(
     () =>
@@ -209,15 +300,13 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
   const currency = invoice?.currency ?? defaults?.currency ?? 'USD'
   const submitting =
     isSubmitting || createBill.isPending || updateInvoice.isPending
+  const canSubmit = isValid && !submitting
 
-  const onSubmit = handleSubmit(async (values) => {
-    setError(null)
-    setStatusMessage(null)
-
+  const runCreateOrUpdate = async (values: InvoiceFormValues) => {
     const invoiceFields = {
       invoice_number: values.invoice_number.trim(),
       issue_date: values.issue_date,
-      // Create-bill requires payment → completed sale is paid.
+      due_date: values.due_date,
       status: isEdit ? values.status : 'paid',
       discount_amount: Number(values.discount_amount) || 0,
       tax_rate: Number(values.tax_rate) || 0,
@@ -235,67 +324,99 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
       })),
     }
 
-    try {
-      if (invoice) {
-        const payload: InvoiceInput = {
-          ...invoiceFields,
-          customer_id: values.customer_id,
-        }
-        await updateInvoice.mutateAsync({ id: invoice.id, input: payload })
-        navigate(paths.invoiceDetail(invoice.id))
-        return
+    if (invoice) {
+      const payload: InvoiceInput = {
+        ...invoiceFields,
+        customer_id: values.customer_id || selectedCustomerId || '',
       }
+      if (!payload.customer_id) {
+        throw new Error('Select a customer for this invoice.')
+      }
+      await updateInvoice.mutateAsync({ id: invoice.id, input: payload })
+      toast('Saved successfully.', 'success')
+      navigate(paths.invoiceDetail(invoice.id))
+      return
+    }
 
-      setCreatePhase('saving')
-      setStatusMessage('Saving customer and invoice…')
-      const id = await createBill.mutateAsync({
-        customer: {
-          name: values.customer_name.trim(),
-          phone: values.customer_phone.trim(),
-          email: values.customer_email.trim(),
-          company_name: '',
-          address: values.customer_address.trim(),
-          notes: values.customer_notes.trim(),
-        },
-        invoice: invoiceFields,
-      })
+    setCreatePhase('saving')
+    setStatusMessage('Saving customer and invoice…')
+    const id = await createBill.mutateAsync({
+      existingCustomerId: selectedCustomerId ?? undefined,
+      customer: {
+        name: values.customer_name.trim(),
+        phone: values.customer_phone.trim(),
+        email: values.customer_email.trim(),
+        company_name: '',
+        address: values.customer_address.trim(),
+        tax_id: values.customer_tax_id.trim(),
+        notes: values.customer_notes.trim(),
+      },
+      invoice: invoiceFields,
+    })
 
-      let delivery: InvoiceDeliveryResult
+    let delivery: InvoiceDeliveryResult
 
-      if (!company) {
+    if (!company) {
+      delivery = {
+        status: 'failed',
+        message:
+          'Bill created, but company settings were unavailable for PDF/email.',
+      }
+    } else {
+      setCreatePhase('delivering')
+      setStatusMessage('Generating PDF and sending email…')
+      try {
+        delivery = await deliverNewInvoice(id, company)
+      } catch (deliveryError) {
         delivery = {
           status: 'failed',
           message:
-            'Bill created, but company settings were unavailable for PDF/email.',
+            deliveryError instanceof Error
+              ? deliveryError.message
+              : 'Bill created, but PDF/email delivery failed.',
         }
-      } else {
-        setCreatePhase('delivering')
-        setStatusMessage('Generating PDF and sending email…')
-        try {
-          delivery = await deliverNewInvoice(id, company)
-        } catch (deliveryError) {
-          delivery = {
-            status: 'failed',
-            message:
-              deliveryError instanceof Error
-                ? deliveryError.message
-                : 'Bill created, but PDF/email delivery failed.',
-          }
+      }
+    }
+
+    toast('Saved successfully.', 'success')
+    navigate(paths.invoiceDetail(id), {
+      replace: true,
+      state: { delivery },
+    })
+  }
+
+  const onSubmit = handleSubmit(async (values) => {
+    setError(null)
+    setStatusMessage(null)
+
+    try {
+      if (!isEdit) {
+        const match = await findExactCustomerDuplicate({
+          name: values.customer_name,
+          phone: values.customer_phone,
+          email: values.customer_email,
+          excludeId: selectedCustomerId ?? undefined,
+        })
+        if (match && match.id !== selectedCustomerId) {
+          setDuplicate(match)
+          setPendingSubmit(values)
+          return
         }
       }
 
-      navigate(paths.invoiceDetail(id), {
-        replace: true,
-        state: { delivery },
-      })
+      await runCreateOrUpdate(values)
     } catch (err) {
       setCreatePhase(null)
       setStatusMessage(null)
-      setError(err instanceof Error ? err.message : 'Unable to create bill.')
+      setError(toFriendlyError(err, 'Unable to create bill.'))
     }
   })
 
-  if (isEdit && customersLoading) {
+  const nameA11y = autocomplete.getInputA11y('name')
+  const phoneA11y = autocomplete.getInputA11y('phone')
+  const emailA11y = autocomplete.getInputA11y('email')
+
+  if (isEdit && !invoice) {
     return (
       <Card className="flex items-center justify-center gap-3 py-16">
         <Spinner className="h-6 w-6" />
@@ -376,6 +497,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
   }
 
   return (
+    <>
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
       {error ? <Alert>{error}</Alert> : null}
       {statusMessage ? <Alert variant="info">{statusMessage}</Alert> : null}
@@ -387,52 +509,116 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               Customer details
             </h3>
             <p className="text-sm text-surface-500">
-              Saved to Customers when you create the bill.
+              Start typing to find an existing customer, or create a new one.
             </p>
           </div>
 
-          <Input
-            label="Name"
-            placeholder="Customer name"
-            autoComplete="name"
-            disabled={submitting}
-            error={errors.customer_name?.message}
-            {...register('customer_name', {
-              required: 'Customer name is required',
-              minLength: { value: 2, message: 'Enter at least 2 characters' },
-              maxLength: { value: 120, message: 'Name is too long' },
-            })}
-          />
+          <div className="relative">
+            <Input
+              label="Name"
+              placeholder="Customer name"
+              disabled={submitting}
+              error={errors.customer_name?.message}
+              success={showFieldSuccess({
+                dirty: dirtyFields.customer_name,
+                touched: touchedFields.customer_name,
+                invalid: Boolean(errors.customer_name),
+                value: watchedCustomerName,
+              })}
+              role={nameA11y.role}
+              aria-expanded={nameA11y['aria-expanded']}
+              aria-controls={nameA11y['aria-controls']}
+              aria-autocomplete={nameA11y['aria-autocomplete']}
+              aria-activedescendant={nameA11y['aria-activedescendant']}
+              autoComplete="off"
+              {...register('customer_name', {
+                onChange: () => {
+                  setSelectedCustomerId(null)
+                  nameA11y.onFocus()
+                },
+                onBlur: () => {
+                  nameA11y.onBlur()
+                },
+              })}
+              onFocus={() => {
+                nameA11y.onFocus()
+              }}
+              onKeyDown={nameA11y.onKeyDown}
+            />
+            {autocomplete.renderDropdownFor('name')}
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Phone number"
-              type="tel"
-              placeholder="+1 555 0100"
-              autoComplete="tel"
-              disabled={submitting}
-              error={errors.customer_phone?.message}
-              {...register('customer_phone', {
-                required: 'Phone number is required',
-                maxLength: { value: 40, message: 'Phone is too long' },
-              })}
-            />
-            <Input
-              label="Email"
-              type="email"
-              placeholder="customer@email.com"
-              autoComplete="email"
-              disabled={submitting}
-              error={errors.customer_email?.message}
-              {...register('customer_email', {
-                required: 'Email is required',
-                pattern: {
-                  value: EMAIL_PATTERN,
-                  message: 'Enter a valid email address',
-                },
-                maxLength: { value: 160, message: 'Email is too long' },
-              })}
-            />
+            <div className="relative">
+              <Input
+                label="Phone number"
+                type="tel"
+                placeholder="+919876543210"
+                disabled={submitting}
+                error={errors.customer_phone?.message}
+                success={showFieldSuccess({
+                  dirty: dirtyFields.customer_phone,
+                  touched: touchedFields.customer_phone,
+                  invalid: Boolean(errors.customer_phone),
+                  value: watchedCustomerPhone,
+                })}
+                role={phoneA11y.role}
+                aria-expanded={phoneA11y['aria-expanded']}
+                aria-controls={phoneA11y['aria-controls']}
+                aria-autocomplete={phoneA11y['aria-autocomplete']}
+                aria-activedescendant={phoneA11y['aria-activedescendant']}
+                autoComplete="off"
+                {...register('customer_phone', {
+                  onChange: () => {
+                    setSelectedCustomerId(null)
+                    phoneA11y.onFocus()
+                  },
+                  onBlur: () => {
+                    phoneA11y.onBlur()
+                  },
+                })}
+                onFocus={() => {
+                  phoneA11y.onFocus()
+                }}
+                onKeyDown={phoneA11y.onKeyDown}
+              />
+              {autocomplete.renderDropdownFor('phone')}
+            </div>
+            <div className="relative">
+              <Input
+                label="Email"
+                type="email"
+                placeholder="customer@email.com"
+                disabled={submitting}
+                error={errors.customer_email?.message}
+                success={showFieldSuccess({
+                  dirty: dirtyFields.customer_email,
+                  touched: touchedFields.customer_email,
+                  invalid: Boolean(errors.customer_email),
+                  value: watchedCustomerEmail,
+                })}
+                role={emailA11y.role}
+                aria-expanded={emailA11y['aria-expanded']}
+                aria-controls={emailA11y['aria-controls']}
+                aria-autocomplete={emailA11y['aria-autocomplete']}
+                aria-activedescendant={emailA11y['aria-activedescendant']}
+                autoComplete="off"
+                {...register('customer_email', {
+                  onChange: () => {
+                    setSelectedCustomerId(null)
+                    emailA11y.onFocus()
+                  },
+                  onBlur: () => {
+                    emailA11y.onBlur()
+                  },
+                })}
+                onFocus={() => {
+                  emailA11y.onFocus()
+                }}
+                onKeyDown={emailA11y.onKeyDown}
+              />
+              {autocomplete.renderDropdownFor('email')}
+            </div>
           </div>
 
           <Textarea
@@ -441,9 +627,15 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             disabled={submitting}
             error={errors.customer_address?.message}
             className="min-h-20"
-            {...register('customer_address', {
-              maxLength: { value: 500, message: 'Address is too long' },
-            })}
+            {...register('customer_address')}
+          />
+
+          <Input
+            label="GST number"
+            placeholder="Optional"
+            disabled={submitting}
+            error={errors.customer_tax_id?.message}
+            {...register('customer_tax_id')}
           />
 
           <Textarea
@@ -451,12 +643,56 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             placeholder="Internal notes about this customer"
             disabled={submitting}
             error={errors.customer_notes?.message}
-            {...register('customer_notes', {
-              maxLength: { value: 2000, message: 'Notes are too long' },
-            })}
+            {...register('customer_notes')}
           />
         </Card>
-      ) : null}
+      ) : (
+        <Card className="space-y-4">
+          <div>
+            <h3 className="font-semibold text-surface-900 dark:text-surface-50">
+              Customer
+            </h3>
+            <p className="text-sm text-surface-500">
+              Search by name, phone, or email to switch customer.
+            </p>
+          </div>
+          <div className="relative">
+            <Input
+              label="Customer name"
+              placeholder="Search customers…"
+              disabled={submitting}
+              error={errors.customer_id?.message}
+              role={nameA11y.role}
+              aria-expanded={nameA11y['aria-expanded']}
+              aria-controls={nameA11y['aria-controls']}
+              aria-autocomplete={nameA11y['aria-autocomplete']}
+              aria-activedescendant={nameA11y['aria-activedescendant']}
+              autoComplete="off"
+              {...register('customer_name', {
+                onChange: () => {
+                  nameA11y.onFocus()
+                },
+                onBlur: () => {
+                  nameA11y.onBlur()
+                },
+              })}
+              onFocus={() => {
+                nameA11y.onFocus()
+              }}
+              onKeyDown={nameA11y.onKeyDown}
+            />
+            {autocomplete.renderDropdownFor('name')}
+          </div>
+          <input type="hidden" {...register('customer_id')} />
+          {(watchedCustomerPhone || watchedCustomerEmail) && (
+            <p className="text-sm text-surface-500">
+              {[watchedCustomerPhone, watchedCustomerEmail]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          )}
+        </Card>
+      )}
 
       <Card>
         <div className="mb-4">
@@ -472,29 +708,35 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             label="Invoice number"
             disabled={submitting}
             error={errors.invoice_number?.message}
-            {...register('invoice_number', {
-              required: 'Invoice number is required',
-            })}
+            {...register('invoice_number')}
           />
-          {isEdit ? (
-            <Select
-              label="Customer"
-              placeholder="Select customer"
-              disabled={submitting || customers.length === 0}
-              error={errors.customer_id?.message}
-              options={customers.map((customer) => ({
-                value: customer.id,
-                label: customer.name,
-              }))}
-              {...register('customer_id', { required: 'Customer is required' })}
-            />
-          ) : null}
           <Input
             label="Billing date"
             type="date"
             disabled={submitting}
             error={errors.issue_date?.message}
-            {...register('issue_date', { required: 'Billing date is required' })}
+            success={showFieldSuccess({
+              dirty: dirtyFields.issue_date,
+              touched: touchedFields.issue_date,
+              invalid: Boolean(errors.issue_date),
+              value: true,
+              requireValue: false,
+            })}
+            {...register('issue_date')}
+          />
+          <Input
+            label="Due date"
+            type="date"
+            disabled={submitting}
+            error={errors.due_date?.message}
+            success={showFieldSuccess({
+              dirty: dirtyFields.due_date,
+              touched: touchedFields.due_date,
+              invalid: Boolean(errors.due_date),
+              value: true,
+              requireValue: false,
+            })}
+            {...register('due_date')}
           />
           {isEdit ? (
             <Select
@@ -502,7 +744,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               disabled={submitting}
               error={errors.status?.message}
               options={statusOptions}
-              {...register('status', { required: 'Status is required' })}
+              {...register('status')}
             />
           ) : null}
           <Input
@@ -510,18 +752,14 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             placeholder="Optional"
             disabled={submitting}
             error={errors.employee_name?.message}
-            {...register('employee_name', {
-              maxLength: { value: 120, message: 'Name is too long' },
-            })}
+            {...register('employee_name')}
           />
           <Select
             label="Payment mode"
             disabled={submitting}
             error={errors.payment_mode?.message}
             options={paymentModeOptions}
-            {...register('payment_mode', {
-              required: 'Payment mode is required',
-            })}
+            {...register('payment_mode')}
           />
           {watchedPaymentMode === 'other' ? (
             <Input
@@ -529,10 +767,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               placeholder="Describe payment mode"
               disabled={submitting}
               error={errors.payment_mode_other?.message}
-              {...register('payment_mode_other', {
-                required: 'Describe the payment mode',
-                maxLength: { value: 80, message: 'Too long' },
-              })}
+              {...register('payment_mode_other')}
             />
           ) : null}
         </div>
@@ -569,6 +804,9 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
         </div>
 
         <div className="space-y-4 p-4 sm:p-5">
+          {typeof errors.items?.message === 'string' ? (
+            <Alert>{errors.items.message}</Alert>
+          ) : null}
           {fields.map((field, index) => {
             const qty = Number(watchedItems?.[index]?.quantity) || 0
             const price = Number(watchedItems?.[index]?.unit_price) || 0
@@ -585,9 +823,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
                     placeholder="Product or service"
                     disabled={submitting}
                     error={errors.items?.[index]?.description?.message}
-                    {...register(`items.${index}.description`, {
-                      required: 'Product is required',
-                    })}
+                    {...register(`items.${index}.description`)}
                   />
                 </div>
                 <div className="lg:col-span-2">
@@ -596,22 +832,13 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
                     placeholder="Type"
                     disabled={submitting}
                     error={errors.items?.[index]?.product_type?.message}
-                    {...register(`items.${index}.product_type`, {
-                      required: 'Product type is required',
-                    })}
+                    {...register(`items.${index}.product_type`)}
                   />
                 </div>
                 <div className="lg:col-span-2">
                   <Controller
                     control={control}
                     name={`items.${index}.quantity`}
-                    rules={{
-                      required: 'Required',
-                      min: { value: 1, message: 'Must be at least 1' },
-                      validate: (value) =>
-                        Number.isInteger(Number(value)) ||
-                        'Whole numbers only',
-                    }}
                     render={({ field }) => (
                       <QuantityStepper
                         label="Qty"
@@ -634,11 +861,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
                     disabled={submitting}
                     error={errors.items?.[index]?.unit_price?.message}
                     className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    {...register(`items.${index}.unit_price`, {
-                      required: 'Required',
-                      valueAsNumber: true,
-                      min: { value: 0, message: 'Must be ≥ 0' },
-                    })}
+                    {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
                   />
                 </div>
                 <div className="flex items-end justify-between gap-2 sm:col-span-2 lg:col-span-3">
@@ -678,11 +901,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               min="0"
               disabled={submitting}
               error={errors.discount_amount?.message}
-              {...register('discount_amount', {
-                required: 'Discount is required',
-                valueAsNumber: true,
-                min: { value: 0, message: 'Must be ≥ 0' },
-              })}
+              {...register('discount_amount', { valueAsNumber: true })}
             />
             <Input
               label="Tax (%)"
@@ -691,10 +910,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
               min="0"
               disabled={submitting}
               error={errors.tax_rate?.message}
-              {...register('tax_rate', {
-                valueAsNumber: true,
-                min: { value: 0, message: 'Must be ≥ 0' },
-              })}
+              {...register('tax_rate', { valueAsNumber: true })}
             />
           </div>
           <Textarea
@@ -752,7 +968,7 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
             Cancel
           </Button>
         </Link>
-        <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
+        <Button type="submit" disabled={!canSubmit} className="w-full sm:w-auto">
           {submitting ? (
             <Spinner className="h-4 w-4 border-white/30 border-t-white" />
           ) : null}
@@ -768,5 +984,45 @@ export function InvoiceForm({ invoice, defaults }: InvoiceFormProps) {
         </Button>
       </div>
     </form>
+
+      <CustomerDuplicateDialog
+        open={Boolean(duplicate)}
+        customer={duplicate}
+        onCancel={() => {
+          setDuplicate(null)
+          setPendingSubmit(null)
+        }}
+        onUseExisting={() => {
+          if (!duplicate) return
+          applyCustomer(duplicate)
+          const values = pendingSubmit ?? getValues()
+          setPendingSubmit(null)
+          void (async () => {
+            try {
+              await runCreateOrUpdate({
+                ...values,
+                customer_name: duplicate.name,
+                customer_phone: duplicate.phone ?? '',
+                customer_email: duplicate.email ?? '',
+                customer_address: duplicate.address_line1 ?? '',
+                customer_tax_id: duplicate.tax_id ?? '',
+                customer_notes: duplicate.notes ?? '',
+                customer_id: duplicate.id,
+              })
+            } catch (err) {
+              setCreatePhase(null)
+              setStatusMessage(null)
+              setError(toFriendlyError(err, 'Unable to create bill.'))
+            }
+          })()
+        }}
+        onViewCustomer={() => {
+          if (!duplicate) return
+          navigate(
+            `${paths.customers}?edit=${duplicate.id}&q=${encodeURIComponent(duplicate.name)}`,
+          )
+        }}
+      />
+    </>
   )
 }

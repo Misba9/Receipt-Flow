@@ -260,8 +260,13 @@ function buildInvoicePayload(
   )
 
   const issueDate = input.issue_date
-  const due = new Date(issueDate)
-  due.setDate(due.getDate() + defaults.due_days)
+  const due =
+    input.due_date?.trim() ||
+    (() => {
+      const computed = new Date(issueDate)
+      computed.setDate(computed.getDate() + defaults.due_days)
+      return computed.toISOString().slice(0, 10)
+    })()
 
   const paymentMode = input.payment_mode || null
   const paymentModeOther =
@@ -276,7 +281,7 @@ function buildInvoicePayload(
     invoice_number: input.invoice_number.trim(),
     status: input.status,
     issue_date: issueDate,
-    due_date: due.toISOString().slice(0, 10),
+    due_date: due,
     currency: defaults.currency,
     subtotal: totals.subtotal,
     tax_rate: input.tax_rate,
@@ -361,10 +366,13 @@ export async function createInvoice(input: InvoiceInput): Promise<string> {
 
 /** Saves customer + invoice together for the create-bill flow. */
 export async function createBill(input: CreateBillInput): Promise<string> {
-  const customer = await createCustomer(input.customer)
+  const customerId =
+    input.existingCustomerId?.trim() ||
+    (await createCustomer(input.customer)).id
+
   return createInvoice({
     ...input.invoice,
-    customer_id: customer.id,
+    customer_id: customerId,
     // Completed counter sale — always recognize revenue.
     status: 'paid',
   })

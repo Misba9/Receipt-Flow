@@ -6,6 +6,7 @@ export type Customer = {
   phone: string | null
   company_name: string | null
   address_line1: string | null
+  tax_id: string | null
   notes: string | null
   is_active: boolean
   created_at: string
@@ -18,8 +19,14 @@ export type CustomerInput = {
   email: string
   company_name: string
   address: string
+  tax_id: string
   notes: string
 }
+
+export type CustomerSuggestion = Pick<
+  Customer,
+  'id' | 'name' | 'email' | 'phone' | 'address_line1' | 'tax_id' | 'notes'
+>
 
 export type CustomersListParams = {
   search?: string

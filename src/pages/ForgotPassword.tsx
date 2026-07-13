@@ -1,14 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { Alert, Button, Input, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
+import { showFieldSuccess } from '@/lib/formFeedback'
+import { toFriendlyError } from '@/lib/friendlyError'
 import { paths } from '@/lib/paths'
-
-type ForgotPasswordFormValues = {
-  email: string
-}
+import {
+  forgotPasswordSchema,
+  type ForgotPasswordSchema,
+} from '@/validation/auth.schema'
 
 export function ForgotPassword() {
   const { resetPassword } = useAuth()
@@ -18,11 +21,20 @@ export function ForgotPassword() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<ForgotPasswordFormValues>({
+    watch,
+    trigger,
+    formState: { errors, isSubmitting, isValid, dirtyFields, touchedFields },
+  } = useForm<ForgotPasswordSchema>({
+    resolver: zodResolver(forgotPasswordSchema),
     defaultValues: { email: '' },
-    mode: 'onBlur',
+    mode: 'onChange',
   })
+
+  useEffect(() => {
+    void trigger()
+  }, [trigger])
+
+  const email = watch('email')
 
   const onSubmit = handleSubmit(async ({ email }) => {
     setFormError(null)
@@ -30,7 +42,9 @@ export function ForgotPassword() {
 
     const { error } = await resetPassword(email.trim())
     if (error) {
-      setFormError(error)
+      setFormError(
+        toFriendlyError(error, 'Unable to send reset link. Please try again.'),
+      )
       return
     }
 
@@ -68,20 +82,20 @@ export function ForgotPassword() {
           placeholder="you@company.com"
           disabled={isSubmitting}
           error={errors.email?.message}
-          {...register('email', {
-            required: 'Email is required',
-            pattern: {
-              value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-              message: 'Enter a valid email address',
-            },
+          success={showFieldSuccess({
+            dirty: dirtyFields.email,
+            touched: touchedFields.email,
+            invalid: Boolean(errors.email),
+            value: email,
           })}
+          {...register('email')}
         />
 
         <Button
           type="submit"
           className="w-full"
           size="lg"
-          disabled={isSubmitting}
+          disabled={!isValid || isSubmitting}
           aria-busy={isSubmitting}
         >
           {isSubmitting ? (

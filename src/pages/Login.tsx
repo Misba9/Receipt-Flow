@@ -1,16 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { Alert, Button, Input, PasswordInput, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
+import { showFieldSuccess } from '@/lib/formFeedback'
+import { toFriendlyError } from '@/lib/friendlyError'
 import { fetchSessionAccess } from '@/services/admin/api'
 import { paths } from '@/lib/paths'
-
-type LoginFormValues = {
-  email: string
-  password: string
-}
+import { loginSchema, type LoginSchema } from '@/validation/auth.schema'
 
 export function Login() {
   const { signIn } = useAuth()
@@ -25,17 +24,27 @@ export function Login() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginFormValues>({
+    watch,
+    trigger,
+    formState: { errors, isSubmitting, isValid, dirtyFields, touchedFields },
+  } = useForm<LoginSchema>({
+    resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
-    mode: 'onBlur',
+    mode: 'onChange',
   })
+
+  useEffect(() => {
+    void trigger()
+  }, [trigger])
+
+  const email = watch('email')
+  const password = watch('password')
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
     setFormError(null)
     const { error } = await signIn(email.trim(), password)
     if (error) {
-      setFormError(error)
+      setFormError(toFriendlyError(error, 'Unable to sign in. Please try again.'))
       return
     }
 
@@ -85,13 +94,13 @@ export function Login() {
           placeholder="you@company.com"
           disabled={isSubmitting}
           error={errors.email?.message}
-          {...register('email', {
-            required: 'Email is required',
-            pattern: {
-              value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-              message: 'Enter a valid email address',
-            },
+          success={showFieldSuccess({
+            dirty: dirtyFields.email,
+            touched: touchedFields.email,
+            invalid: Boolean(errors.email),
+            value: email,
           })}
+          {...register('email')}
         />
 
         <div className="space-y-2">
@@ -101,13 +110,13 @@ export function Login() {
             placeholder="Enter your password"
             disabled={isSubmitting}
             error={errors.password?.message}
-            {...register('password', {
-              required: 'Password is required',
-              minLength: {
-                value: 6,
-                message: 'Password must be at least 6 characters',
-              },
+            success={showFieldSuccess({
+              dirty: dirtyFields.password,
+              touched: touchedFields.password,
+              invalid: Boolean(errors.password),
+              value: password,
             })}
+            {...register('password')}
           />
           <div className="text-right">
             <Link
@@ -123,7 +132,7 @@ export function Login() {
           type="submit"
           className="mt-1 w-full"
           size="lg"
-          disabled={isSubmitting}
+          disabled={!isValid || isSubmitting}
           aria-busy={isSubmitting}
         >
           {isSubmitting ? (

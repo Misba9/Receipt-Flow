@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { UserPlus } from 'lucide-react'
 import { CustomerFormModal } from '@/components/customers/CustomerFormModal'
@@ -8,6 +8,7 @@ import { ExportButton } from '@/components/exports/ExportButton'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Alert, Button, Card, Pagination, SearchInput } from '@/components/ui'
 import { useCustomers } from '@/services/customers/hooks'
+import { fetchCustomers } from '@/services/customers/api'
 import type { Customer } from '@/services/customers/types'
 import { exportCustomersExcel } from '@/services/exports'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
@@ -17,6 +18,7 @@ const PAGE_SIZE = 10
 export function CustomersPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') ?? ''
+  const editId = searchParams.get('edit')
   const search = useDebouncedValue(urlQuery, 300)
 
   const [page, setPage] = useState(1)
@@ -36,23 +38,72 @@ export function CustomersPage() {
     pageSize: PAGE_SIZE,
   })
 
+  useEffect(() => {
+    if (!editId) return
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const result = await fetchCustomers({
+          search: urlQuery,
+          page: 1,
+          pageSize: 50,
+        })
+        const found =
+          result.data.find((row) => row.id === editId) ??
+          (
+            await fetchCustomers({ search: '', page: 1, pageSize: 100 })
+          ).data.find((row) => row.id === editId)
+
+        if (!cancelled && found) {
+          setEditing(found)
+          setFormOpen(true)
+        }
+      } catch {
+        // Ignore — user can still open customers manually.
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [editId, urlQuery])
+
   const handleSearchChange = (value: string) => {
     setPage(1)
-    if (value.trim()) {
-      setSearchParams({ q: value }, { replace: true })
-    } else {
-      setSearchParams({}, { replace: true })
-    }
+    const next = new URLSearchParams(searchParams)
+    if (value.trim()) next.set('q', value)
+    else next.delete('q')
+    setSearchParams(next, { replace: true })
+  }
+
+  const clearEditParam = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('edit')
+    setSearchParams(next, { replace: true })
   }
 
   const openCreate = () => {
     setEditing(null)
+    clearEditParam()
     setFormOpen(true)
   }
 
   const openEdit = (customer: Customer) => {
     setEditing(customer)
     setFormOpen(true)
+  }
+
+  const switchToCustomer = async (customerId: string) => {
+    const match =
+      data?.data.find((row) => row.id === customerId) ??
+      (
+        await fetchCustomers({ search: '', page: 1, pageSize: 100 })
+      ).data.find((row) => row.id === customerId)
+    if (match) {
+      setEditing(match)
+      setFormOpen(true)
+    }
   }
 
   return (
@@ -124,6 +175,10 @@ export function CustomersPage() {
         onClose={() => {
           setFormOpen(false)
           setEditing(null)
+          clearEditParam()
+        }}
+        onSwitchToCustomer={(id) => {
+          void switchToCustomer(id)
         }}
       />
 

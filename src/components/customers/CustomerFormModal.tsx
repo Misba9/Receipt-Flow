@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { CustomerForm } from '@/components/customers/CustomerForm'
 import { Modal } from '@/components/ui/Modal'
+import { useToast } from '@/hooks/useToast'
+import { toFriendlyError } from '@/lib/friendlyError'
 import {
   useCreateCustomer,
   useUpdateCustomer,
@@ -11,13 +13,17 @@ type CustomerFormModalProps = {
   open: boolean
   customer?: Customer | null
   onClose: () => void
+  /** Switch the modal to edit an existing customer (from autocomplete). */
+  onSwitchToCustomer?: (customerId: string) => void
 }
 
 export function CustomerFormModal({
   open,
   customer,
   onClose,
+  onSwitchToCustomer,
 }: CustomerFormModalProps) {
+  const { toast } = useToast()
   const createCustomer = useCreateCustomer()
   const updateCustomer = useUpdateCustomer()
   const [error, setError] = useState<string | null>(null)
@@ -33,9 +39,10 @@ export function CustomerFormModal({
       } else {
         await createCustomer.mutateAsync(values)
       }
+      toast('Saved successfully.', 'success')
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to save customer.')
+      setError(toFriendlyError(err, 'Unable to save customer.'))
     }
   }
 
@@ -57,6 +64,10 @@ export function CustomerFormModal({
         error={error}
         onSubmit={handleSubmit}
         onCancel={onClose}
+        onSelectExisting={(selected) => {
+          if (customer?.id === selected.id) return
+          onSwitchToCustomer?.(selected.id)
+        }}
       />
     </Modal>
   )
